@@ -442,7 +442,7 @@ public class GenerateHelper {
             sb.append("\n");
             sb.append("@Repository\n");
             if (ormEnum == OrmFrameEnum.JDBC_TEMPLATE) {
-                sb.append("@DaoDescription(ormFrame = OrmFrameEnum.JDBC_TEMPLATE,\n");
+                sb.append("@Dao(ormFrame = OrmFrameEnum.JDBC_TEMPLATE,\n");
                 if (this.dbName.equals("mysql")) {
                     sb.append("\t\t\t\tdialect = DialectEnum.MYSQL,\n");
                 } else if (this.dbName.equals("oracle")) {
@@ -451,7 +451,7 @@ public class GenerateHelper {
                 sb.append("\t\t\t\tmasterDBAccessorBeanName = \"masterJdbcTemplate\",\n");
                 sb.append("\t\t\t\tslaveDBAccessorBeanNames = {\"slaveJdbcTemplate\"})\n");
             } else if (ormEnum == OrmFrameEnum.MYBATIS) {
-                sb.append("@DaoDescription(ormFrame = OrmFrameEnum.MYBATIS,\n");
+                sb.append("@Dao(ormFrame = OrmFrameEnum.MYBATIS,\n");
                 if (this.dbName.equals("mysql")) {
                     sb.append("\t\t\t\tdialect = DialectEnum.MYSQL,\n");
                 } else if (this.dbName.equals("oracle")) {

@@ -1,19 +1,14 @@
 package com.github.zhouyutong.zorm.dao.jdbc;
 
-import com.github.zhouyutong.zorm.constant.MixedConstant;
-import com.github.zhouyutong.zorm.entity.LongIdEntity;
+import com.github.zhouyutong.zorm.annotation.PK;
+import com.github.zhouyutong.zorm.dao.DaoHelper;
+import com.github.zhouyutong.zorm.dao.jdbc.annotation.Column;
 import com.github.zhouyutong.zorm.exception.DaoException;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.github.zhouyutong.zorm.annotation.Column;
-import com.github.zhouyutong.zorm.constant.DBConstant;
-import com.github.zhouyutong.zorm.dao.DaoHelper;
 import lombok.Getter;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,6 +21,7 @@ import java.util.Set;
 @Getter
 public final class EntityMapper<T> {
     private String entityName;
+    private String pkFieldName;
     //属性名到字段名映射
     private Map<String, String> propertyToColumnMapper = Maps.newLinkedHashMap();
     //字段名到属性名映射
@@ -37,33 +33,26 @@ public final class EntityMapper<T> {
         this.entityName = entityClass.getCanonicalName();
 
         try {
-            //该entity所有属性
-            List<Field> fieldList = Lists.newArrayList();
-
-            //id字段
-            fieldList.add(LongIdEntity.class.getDeclaredField(DBConstant.PK_NAME));
-
             //本类字段
             Field[] fields = entityClass.getDeclaredFields();
-            if (fields == null || fields.length == MixedConstant.INT_0) {
-                throw new DaoException(getEntityName() + " have no property");
-            }
-            fieldList.addAll(Arrays.asList(fields));
-
-            for (Field field : fieldList) {
+            for (Field field : fields) {
                 if (DaoHelper.isFinalOrStatic(field)) {
                     continue;
                 }
                 String propertyName = field.getName();
                 //istransient=true的加入到忽略持久化列表
                 Column columnAnnotation = field.getAnnotation(Column.class);
-                if (columnAnnotation != null && !columnAnnotation.isTransient()) {
+                if (!columnAnnotation.isTransient()) {
                     notNeedTransientPropertySet.add(propertyName);
                 }
-                String columnName = DaoHelper.getColumnName(field);
+
+                if (field.getAnnotation(PK.class) != null) {
+                    pkFieldName = propertyName;
+                }
+
+                String columnName = JdbcHelper.getColumnName(field);
                 propertyToColumnMapper.put(propertyName, columnName);
                 columnToPropertyMapper.put(columnName, propertyName);
-
             }
         } catch (Exception e) {
             throw new DaoException("无法创建Entity[" + getEntityName() + "]对应的EntityMapper", e);

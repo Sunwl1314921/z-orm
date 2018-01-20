@@ -1,19 +1,16 @@
 package com.github.zhouyutong.zorm.dao.jdbc;
 
-import com.github.zhouyutong.zorm.annotation.Table;
 import com.github.zhouyutong.zorm.constant.MixedConstant;
-import com.github.zhouyutong.zorm.dao.DatabaseRouter;
-import com.github.zhouyutong.zorm.entity.LongIdEntity;
-import com.github.zhouyutong.zorm.exception.DaoException;
-import com.github.zhouyutong.zorm.query.*;
-import com.google.common.collect.Lists;
-import com.github.zhouyutong.zorm.annotation.DaoDescription;
-import com.github.zhouyutong.zorm.constant.DBConstant;
 import com.github.zhouyutong.zorm.dao.DaoHelper;
+import com.github.zhouyutong.zorm.dao.DatabaseRouter;
 import com.github.zhouyutong.zorm.dao.IBaseDao;
 import com.github.zhouyutong.zorm.dao.jdbc.enums.DialectEnum;
+import com.github.zhouyutong.zorm.entity.IdEntity;
+import com.github.zhouyutong.zorm.exception.DaoException;
 import com.github.zhouyutong.zorm.exception.DaoExceptionTranslator;
 import com.github.zhouyutong.zorm.exception.UniqueConstraintException;
+import com.github.zhouyutong.zorm.query.*;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
@@ -30,6 +27,7 @@ import org.springframework.jdbc.support.KeyHolder;
 
 import javax.annotation.PostConstruct;
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.PreparedStatement;
@@ -65,14 +63,14 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     public boolean exists(Serializable id) throws DaoException {
         checkArgumentId(id);
 
-        return this.exists(Criteria.where(DBConstant.PK_NAME, id));
+        return this.exists(Criteria.where(entityMapper.getPkFieldName(), id));
     }
 
     @Override
     public boolean exists(Criteria criteria) throws DaoException {
         checkArgumentCriteria(criteria);
 
-        return null != this.findOne(Arrays.asList(DBConstant.PK_NAME), criteria);
+        return null != this.findOne(Arrays.asList(entityMapper.getPkFieldName()), criteria);
     }
 
     @Override
@@ -139,7 +137,7 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     public T findOneById(Serializable id) throws DaoException {
         checkArgumentId(id);
 
-        return this.findOne(Criteria.where(DBConstant.PK_NAME, id));
+        return this.findOne(Criteria.where(entityMapper.getPkFieldName(), id));
     }
 
     @Override
@@ -163,7 +161,7 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     public List<T> findListByIds(List<Serializable> ids) throws DaoException {
         checkArgumentIds(ids);
 
-        return this.findList(Criteria.where(DBConstant.PK_NAME, CriteriaOperators.IN, ids));
+        return this.findList(Criteria.where(entityMapper.getPkFieldName(), CriteriaOperators.IN, ids));
     }
 
     @Override
@@ -244,18 +242,19 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     public int insert(T entity) throws DaoException {
         checkArgumentEntity(entity);
 
-        final LongIdEntity longIdEntity = (LongIdEntity) entity;
-        final Long id = longIdEntity.getId() == null ? Long.valueOf(0) : longIdEntity.getId();
+        final IdEntity idEntity = (IdEntity) entity;
+        final Field pkField = DaoHelper.getPkField(idEntity);
+        final Object pkValue = DaoHelper.getColumnValue(pkField, idEntity);
         final List<Object> valueList = Lists.newArrayList();
 
         try {
             PreparedStatementCreator psc = connection -> {
-                String insertSqlToUse = INSERT(longIdEntity, valueList, entityMapper, entityClass, jdbcSettings.getDialectEnum(), connection);
+                String insertSqlToUse = INSERT(idEntity, valueList, entityMapper, entityClass, jdbcSettings.getDialectEnum(), connection);
                 PreparedStatement ps;
-                if (id.longValue() > MixedConstant.LONG_0) {
+                if (DaoHelper.hasSetPkValue(pkValue)) {
                     ps = connection.prepareStatement(insertSqlToUse);
                 } else {
-                    ps = connection.prepareStatement(insertSqlToUse, new String[]{DBConstant.PK_NAME});
+                    ps = connection.prepareStatement(insertSqlToUse, new String[]{entityMapper.getPkFieldName()});
                 }
 
                 int i = MixedConstant.INT_0;
@@ -266,12 +265,12 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
             };
 
             int n;
-            if (id.longValue() > MixedConstant.LONG_0 || DialectEnum.ORACLE.equals(jdbcSettings.getDialectEnum())) {//KeyHolder不支持oracle
+            if (DaoHelper.hasSetPkValue(pkValue) || DialectEnum.ORACLE.equals(jdbcSettings.getDialectEnum())) {//KeyHolder不支持oracle
                 n = ((JdbcTemplate) router.writeRoute()).update(psc);
             } else {
                 KeyHolder keyHolder = new GeneratedKeyHolder();
                 n = ((JdbcTemplate) router.writeRoute()).update(psc, keyHolder);
-                longIdEntity.setId(keyHolder.getKey().longValue());
+                DaoHelper.setColumnValue(pkField, idEntity, keyHolder.getKey());
             }
             return n;
         } catch (DuplicateKeyException e) { //唯一约束或主键冲突
@@ -292,7 +291,9 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     public int update(T entity, List<String> propetyList) throws DaoException {
         checkArgumentEntity(entity);
 
-        return this.updateById(((LongIdEntity) entity).getId(), DaoHelper.entity2Update(entity, propetyList));
+        IdEntity idEntity = (IdEntity) entity;
+        Serializable pkValue = DaoHelper.getPkValue(idEntity);
+        return this.updateById(pkValue, DaoHelper.entity2Update(entity, propetyList));
     }
 
     @Override
@@ -300,7 +301,7 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
         checkArgumentId(id);
         checkArgumentUpdate(update);
 
-        return this.updateByCriteria(Criteria.where(DBConstant.PK_NAME, id), update);
+        return this.updateByCriteria(Criteria.where(entityMapper.getPkFieldName(), id), update);
     }
 
     @Override
@@ -308,7 +309,7 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
         checkArgumentIds(ids);
         checkArgumentUpdate(update);
 
-        return this.updateByCriteria(Criteria.where(DBConstant.PK_NAME, CriteriaOperators.IN, ids), update);
+        return this.updateByCriteria(Criteria.where(entityMapper.getPkFieldName(), CriteriaOperators.IN, ids), update);
     }
 
     @Override
@@ -509,37 +510,18 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
 
     @PostConstruct
     protected void afterPropertiesSet() {
-        //得到dao具体类class
         Class daoClass = this.getClass();
-
         //得到泛型entityClass
         ParameterizedType type = (ParameterizedType) daoClass.getGenericSuperclass();
         Type[] p = type.getActualTypeArguments();
         this.entityClass = (Class<T>) p[0];
-        if (this.entityClass == null) {
-            throw new DaoException("can not get the entity's Generic Type");
-        }
-        if (!LongIdEntity.class.isAssignableFrom(this.entityClass)) {
-            throw new DaoException("entity[" + this.entityClass.getName() + "] must inherit LongIdEntity");
-        }
-
-        //表名
-        Table tableAnnotation = this.entityClass.getAnnotation(Table.class);
-        if (tableAnnotation == null) {
-            throw new DaoException(this.entityClass.getName() + " 表注解Table必须指定");
-        }
-
-        //得到dao注解描述信息
-        DaoDescription daoDescription = (DaoDescription) daoClass.getAnnotation(DaoDescription.class);
-        if (daoDescription == null) {
-            throw new DaoException("注解DaoDescription必须设置");
-        }
+        JdbcHelper.checkEntityClass(this.entityClass);
 
         //得到jdbcSettings
-        String settingsName = daoDescription.settingBeanName();
+        String settingsName = DaoHelper.getSettingsName(daoClass);
         this.jdbcSettings = (JdbcSettings) this.applicationContext.getBean(settingsName);
         if (this.jdbcSettings == null) {
-            throw new DaoException("注解DaoDescription的属性settingBeanName[" + settingsName + "]必须对应一个有效的JdbcSettings bean");
+            throw new DaoException("注解Dao的属性settingBeanName[" + settingsName + "]必须对应一个有效的JdbcSettings bean");
         }
 
         //create router

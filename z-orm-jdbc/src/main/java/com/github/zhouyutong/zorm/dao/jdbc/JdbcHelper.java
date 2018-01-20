@@ -1,15 +1,17 @@
 package com.github.zhouyutong.zorm.dao.jdbc;
 
-import com.github.zhouyutong.zorm.annotation.Table;
-import com.github.zhouyutong.zorm.constant.DBConstant;
+import com.github.zhouyutong.zorm.annotation.PK;
 import com.github.zhouyutong.zorm.constant.MixedConstant;
 import com.github.zhouyutong.zorm.constant.SymbolConstant;
 import com.github.zhouyutong.zorm.dao.DaoHelper;
+import com.github.zhouyutong.zorm.dao.jdbc.annotation.Column;
+import com.github.zhouyutong.zorm.dao.jdbc.annotation.Table;
 import com.github.zhouyutong.zorm.dao.jdbc.enums.DialectEnum;
-import com.github.zhouyutong.zorm.entity.LongIdEntity;
+import com.github.zhouyutong.zorm.entity.IdEntity;
 import com.github.zhouyutong.zorm.exception.DaoException;
 import com.github.zhouyutong.zorm.query.*;
 import com.github.zhouyutong.zorm.utils.BeanUtils;
+import com.github.zhouyutong.zorm.utils.StrUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.commons.collections.CollectionUtils;
@@ -240,62 +242,55 @@ public final class JdbcHelper {
         }
     }
 
-    static String INSERT(LongIdEntity longIdEntity, List<Object> valueList, EntityMapper<?> entityMapper, Class<?> entityClass, DialectEnum dialectEnum, Connection connection) {
+    static String INSERT(IdEntity idEntity, List<Object> valueList, EntityMapper<?> entityMapper, Class<?> entityClass, DialectEnum dialectEnum, Connection connection) {
         Map<String, String> propertyToColumnMapper = entityMapper.getPropertyToColumnMapper();
         Set<String> notNeedTransientPropertySet = entityMapper.getNotNeedTransientPropertySet();
 
         StringBuilder sb = new StringBuilder(" INSERT INTO ");
 
         //组装表名
-        Class beanClass = longIdEntity.getClass();
         sb.append(getTableName(entityClass)).append(" (");
 
         //组装字段
-        List<Field> fieldList = Lists.newArrayList();
         List<String> pList = Lists.newArrayList();
 
         //IdEntity字段
-        Long id = longIdEntity.getId() == null ? Long.valueOf(MixedConstant.INT_0) : longIdEntity.getId();
-        if (id.longValue() > MixedConstant.LONG_0) {
+        final Field pkField = DaoHelper.getPkField(idEntity);
+        final Object pkValue = DaoHelper.getColumnValue(pkField, idEntity);
+        if (DaoHelper.hasSetPkValue(pkValue)) {
             pList.add(SymbolConstant.QUESTION);
-            sb.append(propertyToColumnMapper.get(DBConstant.PK_NAME)).append(SymbolConstant.COMMA);
-            try {
-                valueList.add(DaoHelper.getColumnValue(LongIdEntity.class.getDeclaredField(DBConstant.PK_NAME), longIdEntity));
-            } catch (NoSuchFieldException e) {
-                throw new DaoException("insert error", e);
-            }
+            sb.append(propertyToColumnMapper.get(entityMapper.getPkFieldName())).append(SymbolConstant.COMMA);
+            valueList.add(pkValue);
         } else {
             if (DialectEnum.ORACLE.equals(dialectEnum)) {
-                sb.append(propertyToColumnMapper.get(DBConstant.PK_NAME)).append(SymbolConstant.COMMA);
+                sb.append(propertyToColumnMapper.get(entityMapper.getPkFieldName())).append(SymbolConstant.COMMA);
                 if (StringUtils.isNotBlank(getSequenceName(entityClass))) {
                     pList.add(SymbolConstant.QUESTION);
                     Long oracleId = genOracleId(getSequenceName(entityClass), connection);
                     valueList.add(oracleId);
-                    longIdEntity.setId(oracleId);
+                    DaoHelper.setColumnValue(pkField, idEntity, oracleId);
                 } else {
                     throw new DaoException("连接ORACLE,实体Table注解必须设置sequence");
                 }
             }
         }
 
-
         //本类字段
-        Field[] fields = beanClass.getDeclaredFields();
-        fieldList.addAll(Arrays.asList(fields));
-
-        for (Field field : fieldList) {
-            if (DaoHelper.isFinalOrStatic(field)) {
+        for (Map.Entry<String, String> entry : propertyToColumnMapper.entrySet()) {
+            String fieldName = entry.getKey();
+            String columnName = entry.getValue();
+            //pk前面已经处理了
+            if (fieldName.equals(entityMapper.getPkFieldName())) {
                 continue;
             }
-            //过滤掉不需要持久化的变量
-            String propertyName = field.getName();
-            if (notNeedTransientPropertySet.contains(propertyName)) {
+            //过滤掉不需要持久化的
+            if (notNeedTransientPropertySet.contains(fieldName)) {
                 continue;
             }
 
-            sb.append(propertyToColumnMapper.get(propertyName)).append(SymbolConstant.COMMA);
+            sb.append(columnName).append(SymbolConstant.COMMA);
             pList.add(SymbolConstant.QUESTION);
-            valueList.add(DaoHelper.getColumnValue(field, longIdEntity));
+            valueList.add(DaoHelper.getColumnValue(fieldName, idEntity));
         }
         sb.deleteCharAt(sb.length() - MixedConstant.INT_1).append(")");
 
@@ -328,6 +323,73 @@ public final class JdbcHelper {
     static String getSequenceName(Class<?> entityClass) {
         Table tableAnnotation = entityClass.getAnnotation(Table.class);
         return tableAnnotation.sequence();
+    }
+
+    /**
+     * 校验entityClass必须符合框架的规范
+     *
+     * @param entityClass
+     */
+    public static void checkEntityClass(Class entityClass) {
+        if (entityClass == null) {
+            throw new DaoException("can not get the entity's Generic Type");
+        }
+
+        String entityClassName = entityClass.getName();
+        if (!IdEntity.class.isAssignableFrom(entityClass)) {
+            throw new DaoException("entity[" + entityClassName + "] must implements IdEntity");
+        }
+
+        Table tableAnnotation = (Table) entityClass.getAnnotation(Table.class);
+        if (tableAnnotation == null) {
+            throw new DaoException("entity[" + entityClassName + "] must have Table annotation");
+        }
+
+        Field[] fields = entityClass.getDeclaredFields();
+        if (fields == null || fields.length == 0) {
+            throw new DaoException("entity[" + entityClassName + "] must have least one Field");
+        }
+
+        int pkAnnotationCount = 0;
+        String pkFieldTypeName = "";
+        List<String> supportPKFieldType = Lists.newArrayList("java.lang.Integer", "java.lang.Long", "java.lang.String");
+        for (Field field : fields) {
+            if (DaoHelper.isFinalOrStatic(field)) {
+                continue;
+            }
+            Column columnAnnotation = field.getAnnotation(Column.class);
+            if (columnAnnotation == null) {
+                throw new DaoException("entity[" + entityClassName + "]的字段[" + field.getName() + "]必须有Column注解");
+            }
+
+            PK pkAnnotation = field.getAnnotation(PK.class);
+            if (pkAnnotation != null) {
+                pkAnnotationCount++;
+                pkFieldTypeName = field.getType().getName();
+            }
+        }
+        if (pkAnnotationCount != 1) {
+            throw new DaoException("entity[" + entityClassName + "] 有且只能有一个PK注解的字段");
+        }
+        if (!supportPKFieldType.contains(pkFieldTypeName)) {
+            throw new DaoException("entity[" + entityClassName + "]的pk字段类型只能是Long,Integer,String其中之一");
+        }
+    }
+
+    /**
+     * 根据field得到对应列名
+     *
+     * @param field - 字段对象
+     * @return - 返回filed标注的列名注解
+     */
+    public static String getColumnName(Field field) {
+        String propertyName = field.getName();
+        Column columnAnnotation = field.getAnnotation(Column.class);
+        if (StringUtils.isBlank(columnAnnotation.value())) {//column注解没有值,采用驼峰法取字段名
+            return StrUtils.underscoreName(propertyName);
+        } else {//使用column注解定义的字段名
+            return columnAnnotation.value().toLowerCase();
+        }
     }
 
     /**

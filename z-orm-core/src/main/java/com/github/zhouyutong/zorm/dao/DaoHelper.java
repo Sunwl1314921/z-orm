@@ -1,12 +1,13 @@
 package com.github.zhouyutong.zorm.dao;
 
-import com.github.zhouyutong.zorm.annotation.Column;
+import com.github.zhouyutong.zorm.annotation.Dao;
+import com.github.zhouyutong.zorm.annotation.PK;
+import com.github.zhouyutong.zorm.entity.IdEntity;
 import com.github.zhouyutong.zorm.exception.DaoException;
 import com.github.zhouyutong.zorm.exception.DaoMethodParameterException;
 import com.github.zhouyutong.zorm.query.*;
 import com.github.zhouyutong.zorm.utils.StrUtils;
 import com.google.common.collect.Lists;
-import com.github.zhouyutong.zorm.constant.DBConstant;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -18,6 +19,7 @@ import java.util.List;
 
 /**
  * 通用的help方法放入此类
+ * 主键字段类型的支持都在此类中
  *
  * @Author zhouyutong
  * @Date 2017/4/27
@@ -31,7 +33,6 @@ public class DaoHelper {
 
         List<Field> fieldList = Lists.newArrayList();
         fieldList.addAll(Arrays.asList(entity.getClass().getDeclaredFields()));
-
 
         for (Field field : fieldList) {
             if (isFinalOrStatic(field)) {
@@ -58,24 +59,41 @@ public class DaoHelper {
         field.setAccessible(true);
         try {
             return field.get(bean);
-        } catch (IllegalAccessException e) {
-            throw new DaoException("无法获取entity[" + bean + "]的属性[" + field.getName() + "]的值", e);
+        } catch (Exception e) {
+            throw new DaoException("无法获取entity[" + bean.getClass().getName() + "]的属性[" + field.getName() + "]的值", e);
         }
     }
 
     /**
-     * 根据field得到对应列名
+     * 根据field得到对应值
+     *
+     * @param fieldName - 字段对象
+     * @param bean      - 对应的bean
+     * @return - 返回filed值
+     */
+    public static Object getColumnValue(String fieldName, Object bean) {
+        try {
+            Field field = bean.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field.get(bean);
+        } catch (Exception e) {
+            throw new DaoException("无法获取entity[" + bean.getClass().getName() + "]的属性[" + fieldName + "]的值", e);
+        }
+    }
+
+    /**
+     * 根据field得到对应值
      *
      * @param field - 字段对象
-     * @return - 返回filed标注的列名注解
+     * @param bean  - 对应的bean
+     * @return - 返回filed值
      */
-    public static String getColumnName(Field field) {
-        String propertyName = field.getName();
-        Column columnAnnotation = field.getAnnotation(Column.class);
-        if (columnAnnotation == null || StringUtils.isBlank(columnAnnotation.value())) {//column注解没有值,采用驼峰法取字段名
-            return StrUtils.underscoreName(propertyName);
-        } else {//使用column注解定义的字段名
-            return columnAnnotation.value().toLowerCase();
+    public static void setColumnValue(Field field, Object bean, Object v) {
+        field.setAccessible(true);
+        try {
+            field.set(bean, v);
+        } catch (Exception e) {
+            throw new DaoException("无法设置entity[" + bean.getClass().getName() + "]的属性[" + field.getName() + "],值[" + v + "]", e);
         }
     }
 
@@ -199,8 +217,83 @@ public class DaoHelper {
         if (update.getSetMap().isEmpty()) {
             throw new DaoMethodParameterException("Param update must be set");
         }
-        if (update.getSetMap().containsKey(DBConstant.PK_NAME)) {
-            throw new DaoMethodParameterException("Param update keys can not contains id");
+    }
+
+    /**
+     * 校验daoClass必须符合框架的规范
+     *
+     * @param daoClass
+     */
+    public static void checkDaoClass(Class daoClass) {
+        String daoClassName = daoClass.getName();
+        //得到dao注解描述信息
+        Dao daoAnnotation = (Dao) daoClass.getAnnotation(Dao.class);
+        if (daoAnnotation == null) {
+            throw new DaoException("entity[" + daoClassName + "] must have Dao annotation");
         }
+    }
+
+    /**
+     * 得到dao对象的注解属性
+     *
+     * @param daoClass
+     */
+    public static String getSettingsName(Class daoClass) {
+        checkDaoClass(daoClass);
+        Dao daoAnnotation = (Dao) daoClass.getAnnotation(Dao.class);
+        return daoAnnotation.settingBeanName();
+    }
+
+    /**
+     * 得到entity的主键值
+     *
+     * @param idEntity
+     * @return
+     */
+    public static Field getPkField(IdEntity idEntity) {
+        Field pkField = null;
+        Field[] fields = idEntity.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            PK pkAnnotation = field.getAnnotation(PK.class);
+            if (pkAnnotation != null) {
+                pkField = field;
+                break;
+            }
+        }
+        return pkField;
+    }
+
+
+    /**
+     * 根据field得到对应值
+     *
+     * @param idEntity - 字段对象
+     * @return - 返回filed值
+     */
+    public static Serializable getPkValue(IdEntity idEntity) {
+        Field pkField = getPkField(idEntity);
+        return (Serializable) getColumnValue(pkField, idEntity);
+    }
+
+    /**
+     * 判断idEntity是否由外部service设置的主键
+     *
+     * @param pkValue
+     * @return
+     */
+    public static boolean hasSetPkValue(Object pkValue) {
+        if (pkValue == null) {
+            return false;
+        }
+        if (pkValue instanceof Long && ((Long) pkValue).longValue() > 0L) {
+            return true;
+        }
+        if (pkValue instanceof Integer && ((Integer) pkValue).intValue() > 0) {
+            return true;
+        }
+        if (pkValue instanceof String && StringUtils.isNotBlank(pkValue.toString())) {
+            return true;
+        }
+        return false;
     }
 }

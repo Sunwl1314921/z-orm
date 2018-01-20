@@ -1,6 +1,10 @@
 package com.github.zhouyutong.zorm.dao.elasticsearch;
 
+import com.github.zhouyutong.zorm.annotation.PK;
 import com.github.zhouyutong.zorm.constant.MixedConstant;
+import com.github.zhouyutong.zorm.dao.DaoHelper;
+import com.github.zhouyutong.zorm.dao.elasticsearch.annotation.Document;
+import com.github.zhouyutong.zorm.entity.IdEntity;
 import com.github.zhouyutong.zorm.exception.DaoException;
 import com.github.zhouyutong.zorm.query.Criteria;
 import com.github.zhouyutong.zorm.query.CriteriaOperators;
@@ -327,5 +331,66 @@ public final class ElasticSearchHelper {
             sb.append(errorMessage);
         }
         throw new DaoException(sb.toString(), e);
+    }
+
+    public static String getIndexName(Class entityClass) {
+        Document documentAnn = (Document) entityClass.getAnnotation(Document.class);
+        return documentAnn.indexName();
+    }
+
+    public static String getTypeName(Class entityClass) {
+        Document documentAnn = (Document) entityClass.getAnnotation(Document.class);
+        return documentAnn.typeName();
+    }
+
+    /**
+     * 校验entityClass必须符合框架的规范
+     *
+     * @param entityClass
+     */
+    public static void checkEntityClass(Class entityClass) {
+        if (entityClass == null) {
+            throw new DaoException("can not get the entity's Generic Type");
+        }
+
+        String entityClassName = entityClass.getName();
+        if (!IdEntity.class.isAssignableFrom(entityClass)) {
+            throw new DaoException("entity[" + entityClassName + "] must implements IdEntity");
+        }
+
+        Document tableAnnotation = (Document) entityClass.getAnnotation(Document.class);
+        if (tableAnnotation == null) {
+            throw new DaoException("entity[" + entityClassName + "] must have Document annotation");
+        }
+
+        Field[] fields = entityClass.getDeclaredFields();
+        if (fields == null || fields.length == 0) {
+            throw new DaoException("entity[" + entityClassName + "] must have least one Field");
+        }
+
+        int pkAnnotationCount = 0;
+        String pkFieldTypeName = "";
+        List<String> supportPKFieldType = Lists.newArrayList("java.lang.Integer", "java.lang.Long", "java.lang.String");
+        for (Field field : fields) {
+            if (DaoHelper.isFinalOrStatic(field)) {
+                continue;
+            }
+            com.github.zhouyutong.zorm.dao.elasticsearch.annotation.Field columnAnnotation = field.getAnnotation(com.github.zhouyutong.zorm.dao.elasticsearch.annotation.Field.class);
+            if (columnAnnotation == null) {
+                throw new DaoException("entity[" + entityClassName + "]的字段[" + field.getName() + "]必须有Column注解");
+            }
+
+            PK pkAnnotation = field.getAnnotation(PK.class);
+            if (pkAnnotation != null) {
+                pkAnnotationCount++;
+                pkFieldTypeName = field.getType().getName();
+            }
+        }
+        if (pkAnnotationCount != 1) {
+            throw new DaoException("entity[" + entityClassName + "] 有且只能有一个PK注解的字段");
+        }
+        if (!supportPKFieldType.contains(pkFieldTypeName)) {
+            throw new DaoException("entity[" + entityClassName + "]的pk字段类型只能是Long,Integer,String其中之一");
+        }
     }
 }

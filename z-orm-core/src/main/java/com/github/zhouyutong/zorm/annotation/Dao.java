@@ -1,25 +1,20 @@
 package com.github.zhouyutong.zorm.annotation;
 
+
 import java.lang.annotation.*;
 
 /**
- * 标注entity对应的表名
+ * 标注Dao相关描述
+ * Created by zhouyutong on 2016/7/26.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface Table {
+public @interface Dao {
     /**
-     * 表名
+     * 标注dao设置对象的bean
      *
      * @return
      */
-    String value();
-
-    /**
-     * oracle表对应的sequence
-     *
-     * @return
-     */
-    String sequence() default "";
+    String settingBeanName();
 }

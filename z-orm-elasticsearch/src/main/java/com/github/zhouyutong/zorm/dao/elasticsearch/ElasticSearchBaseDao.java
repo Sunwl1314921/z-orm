@@ -1,12 +1,11 @@
 package com.github.zhouyutong.zorm.dao.elasticsearch;
 
-import com.github.zhouyutong.zorm.annotation.DaoDescription;
+import com.github.zhouyutong.zorm.annotation.PK;
 import com.github.zhouyutong.zorm.constant.DBConstant;
 import com.github.zhouyutong.zorm.constant.MixedConstant;
 import com.github.zhouyutong.zorm.dao.DaoHelper;
 import com.github.zhouyutong.zorm.dao.IBaseDao;
-import com.github.zhouyutong.zorm.dao.elasticsearch.annotation.Document;
-import com.github.zhouyutong.zorm.entity.StringIdEntity;
+import com.github.zhouyutong.zorm.entity.IdEntity;
 import com.github.zhouyutong.zorm.exception.DaoException;
 import com.github.zhouyutong.zorm.exception.DaoExceptionTranslator;
 import com.github.zhouyutong.zorm.exception.DaoMethodParameterException;
@@ -54,7 +53,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-
 /**
  * 基于ElasticSearch 5.3 TransportClient的Dao实现
  *
@@ -67,6 +65,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
     private ElasticSearchSettings elasticSearchSettings;
     private String index;
     private String type;
+    private String pkFieldName;
     private Class<T> entityClass;
     private boolean hasEsVersionFiled;  //含有es的version字段可使用ES的带版本更新
     private List<String> notNeedTransientPropertyList = Lists.newArrayList();   //不需要持久化的字段
@@ -81,14 +80,14 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
     public boolean exists(Serializable id) throws DaoException {
         DaoHelper.checkArgumentId(id);
 
-        return this.exists(Criteria.where(DBConstant.PK_NAME, id));
+        return this.exists(Criteria.where(pkFieldName, id));
     }
 
     @Override
     public boolean exists(Criteria criteria) throws DaoException {
         DaoHelper.checkArgumentCriteria(criteria);
 
-        return null != this.findOne(Arrays.asList(DBConstant.PK_NAME), criteria);
+        return null != this.findOne(Arrays.asList(pkFieldName), criteria);
     }
 
     @Override
@@ -381,10 +380,15 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
 
         try {
             Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            String id = ((StringIdEntity) entity).getId();
+
+            IdEntity idEntity = (IdEntity) entity;
+            Field pkField = DaoHelper.getPkField(idEntity);
+            Object pkValue = DaoHelper.getColumnValue(pkField, idEntity);
+            boolean hasSetPkValue = DaoHelper.hasSetPkValue(pkValue);
+
             IndexRequestBuilder indexRequestBuilder = client.prepareIndex(index, type);
-            if (StringUtils.isNotBlank(id)) {
-                indexRequestBuilder.setId(id).setCreate(true);
+            if (hasSetPkValue) {
+                indexRequestBuilder.setId(pkValue.toString()).setCreate(true);
             }
 
             String sourceJsonStr = ElasticSearchHelper.getSourceJsonStrWhenInsert(entity, hasEsVersionFiled, notNeedTransientPropertyList);
@@ -395,10 +399,9 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
             /**
              * 插入完成后把es自动生成的id设置回entity
              */
-            if (StringUtils.isBlank(id)) {
+            if (!hasSetPkValue) {
                 String idAfterInsert = indexResponse.getId();
-                StringIdEntity stringIdEntity = (StringIdEntity) entity;
-                stringIdEntity.setId(idAfterInsert);
+                DaoHelper.setColumnValue(pkField, idEntity, idAfterInsert);
             }
 
             /**
@@ -423,7 +426,9 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
     public int update(T entity, List<String> propetyList) throws DaoException {
         DaoHelper.checkArgumentEntity(entity);
 
-        return this.updateById(((StringIdEntity) entity).getId(), DaoHelper.entity2Update(entity, propetyList));
+        IdEntity idEntity = (IdEntity) entity;
+        Serializable pkValue = DaoHelper.getPkValue(idEntity);
+        return this.updateById(pkValue, DaoHelper.entity2Update(entity, propetyList));
     }
 
     @Override
@@ -739,53 +744,38 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
 
     @PostConstruct
     protected void afterPropertiesSet() {
-        //得到dao具体类class
         Class daoClass = this.getClass();
-
         //得到泛型entityClass
         ParameterizedType type = (ParameterizedType) daoClass.getGenericSuperclass();
         Type[] p = type.getActualTypeArguments();
         this.entityClass = (Class<T>) p[0];
-        if (this.entityClass == null) {
-            throw new DaoException("can not get the entity's Generic Type");
-        }
-        if (!StringIdEntity.class.isAssignableFrom(this.entityClass)) {
-            throw new DaoException("entity[" + this.entityClass.getName() + "] must inherit StringIdEntity");
-        }
-        this.hasEsVersionFiled = ElasticSearchHelper.hasEsVersionField(this.entityClass);
+        ElasticSearchHelper.checkEntityClass(entityClass);
 
-        //表名
-        Document documentAnn = entityClass.getAnnotation(Document.class);
-        if (documentAnn == null) {
-            throw new DaoException(this.entityClass.getName() + " 表注解Document必须指定");
-        }
-        this.index = documentAnn.indexName();
-        this.type = documentAnn.typeName();
-
-        //得到dao注解描述信息
-        DaoDescription daoDescription = (DaoDescription) daoClass.getAnnotation(DaoDescription.class);
-        if (daoDescription == null) {
-            throw new DaoException("注解DaoDescription必须设置");
-        }
+        this.hasEsVersionFiled = ElasticSearchHelper.hasEsVersionField(entityClass);
+        this.index = ElasticSearchHelper.getIndexName(entityClass);
+        this.type = ElasticSearchHelper.getTypeName(entityClass);
 
         //得到jdbcSettings
-        String settingsName = daoDescription.settingBeanName();
+        String settingsName = DaoHelper.getSettingsName(daoClass);
         this.elasticSearchSettings = (ElasticSearchSettings) this.applicationContext.getBean(settingsName);
         if (this.elasticSearchSettings == null) {
-            throw new DaoException("注解DaoDescription的属性settingBeanName[" + settingsName + "]必须对应一个有效的ElasticSearchSettings bean");
+            throw new DaoException("注解Dao的属性settingBeanName[" + settingsName + "]必须对应一个有效的ElasticSearchSettings bean");
         }
 
         ElasticSearchClientFactory.INSTANCE.setClient(elasticSearchSettings);
 
         //设置不需要持久化的字段
         Field[] fields = entityClass.getDeclaredFields();
-        if (fields == null || fields.length == MixedConstant.INT_0) {
-            throw new DaoException(entityClass.getName() + " have no property");
-        }
         for (Field field : fields) {
+            if (DaoHelper.isFinalOrStatic(field)) {
+                continue;
+            }
             String propertyName = field.getName();
+            if (field.getAnnotation(PK.class) != null) {
+                pkFieldName = propertyName;
+            }
             com.github.zhouyutong.zorm.dao.elasticsearch.annotation.Field annotation = field.getAnnotation(com.github.zhouyutong.zorm.dao.elasticsearch.annotation.Field.class);
-            if (annotation != null && !annotation.isTransient()) {
+            if (!annotation.isTransient()) {
                 notNeedTransientPropertyList.add(propertyName);
             }
         }

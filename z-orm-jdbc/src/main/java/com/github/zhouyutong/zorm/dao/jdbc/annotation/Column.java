@@ -1,4 +1,4 @@
-package com.github.zhouyutong.zorm.annotation;
+package com.github.zhouyutong.zorm.dao.jdbc.annotation;
 
 import java.lang.annotation.*;
 
