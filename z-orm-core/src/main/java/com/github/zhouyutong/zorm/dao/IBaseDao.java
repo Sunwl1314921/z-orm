@@ -17,30 +17,6 @@ public interface IBaseDao<T> {
 
     Class<T> getGenericClass();
 
-    boolean exists(Serializable id) throws DaoException;
-
-    boolean exists(Criteria criteria) throws DaoException;
-
-    long countByCriteria(Criteria criteria) throws DaoException;
-
-    long countAll() throws DaoException;
-
-    long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException;
-
-    T findOneById(Serializable id) throws DaoException;
-
-    T findOneByQuery(Query query) throws DaoException;
-
-    T findOneBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException;
-
-    List<T> findListByIds(List<Serializable> ids) throws DaoException;
-
-    List<T> findListByQuery(Query query) throws DaoException;
-
-    List<T> findListByQuery(Query query, Pageable pageable) throws DaoException;
-
-    List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException;
-
     int insert(T entity) throws DaoException;
 
     //更新实体所有属性
@@ -59,9 +35,33 @@ public interface IBaseDao<T> {
 
     int deleteById(Serializable id) throws DaoException;
 
+    boolean exists(Serializable id) throws DaoException;
+
+    boolean exists(Criteria criteria) throws DaoException;
+
+    long countByCriteria(Criteria criteria) throws DaoException;
+
+    long countAll() throws DaoException;
+
+    long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException;
+
     T findOne(List<String> fields, Criteria criteria) throws DaoException;
 
     T findOne(Criteria criteria) throws DaoException;
+
+    T findOneById(Serializable id) throws DaoException;
+
+    T findOneByQuery(Query query) throws DaoException;
+
+    T findOneBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException;
+
+    List<T> findListByIds(List<Serializable> ids) throws DaoException;
+
+    List<T> findListByQuery(Query query) throws DaoException;
+
+    List<T> findListByQuery(Query query, Pageable pageable) throws DaoException;
+
+    List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException;
 
     List<T> findList(List<String> fields, Criteria criteria) throws DaoException;
 

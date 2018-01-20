@@ -283,7 +283,6 @@ public final class JdbcHelper {
         Field[] fields = beanClass.getDeclaredFields();
         fieldList.addAll(Arrays.asList(fields));
 
-
         for (Field field : fieldList) {
             if (DaoHelper.isFinalOrStatic(field)) {
                 continue;
