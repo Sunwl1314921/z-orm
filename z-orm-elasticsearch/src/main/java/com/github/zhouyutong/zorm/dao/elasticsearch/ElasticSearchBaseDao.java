@@ -617,7 +617,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
 
         Query query = Query.query(criteria);
         query.includeField(fields.toArray(new String[fields.size()]));
-        query.withOrderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
         return this.findListByQuery(query);
     }
 
@@ -630,7 +630,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
 
         Query query = Query.query(criteria);
         query.includeField(fields.toArray(new String[fields.size()]));
-        query.withOrderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
         return this.findListByQuery(query, pageable);
     }
 
@@ -648,7 +648,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
         DaoHelper.checkArgumentOrderBys(orderBys);
 
         Query query = Query.query(criteria);
-        query.withOrderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
         return this.findListByQuery(query);
     }
 
@@ -659,7 +659,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
         DaoHelper.checkArgumentPageable(pageable);
 
         Query query = Query.query(criteria);
-        query.withOrderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
         return this.findListByQuery(query, pageable);
     }
 
@@ -685,7 +685,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
 
         Query query = Query.query();
         query.includeField(fields.toArray(new String[fields.size()]));
-        query.withOrderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
         return this.findListByQuery(query);
     }
 
@@ -697,7 +697,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
 
         Query query = Query.query();
         query.includeField(fields.toArray(new String[fields.size()]));
-        query.withOrderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
         return this.findListByQuery(query, pageable);
     }
 
@@ -707,7 +707,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
         DaoHelper.checkArgumentPageable(pageable);
 
         Query query = Query.query();
-        query.withOrderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
         return this.findListByQuery(query, pageable);
     }
 
