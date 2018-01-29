@@ -1,4 +1,3 @@
- # z-orm<br>
 ## z-orm框架是易用的统一dao层框架，对service层暴露统一的数据访问接口，而与具体的数据源无关，极大的将底层数据源访问复杂度和扩展收敛在dao层。<br>
 ## 支持功能：<br>
 1、提供类MongoDB的Query和类Hibernate的面向对象方式查询。<br>
