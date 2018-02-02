@@ -57,7 +57,7 @@ public TransactionManager transactionManager_rrc(DataSource masterDataSource) {
 ```
 #### 3、使用dao
 ```java
-@Dao(settingBeanName = "jdbcSettings_sale")
+@Dao(settingBeanName = "jdbcSettings")
 @Repository
 public class MessageDao extends JdbcBaseDao<MessageEntity> {
 }
@@ -66,7 +66,12 @@ public class MessageDao extends JdbcBaseDao<MessageEntity> {
 public class MessageService {
     @Autowired
     private MessageDao messageDao;
+    @Autowired
+    private TransactionManager transactionManager;
     
+    /**
+     * 单表增删改查覆盖80%场景,剩余20%复杂sql通过find***BySql全覆盖
+     */
     public void demo() {
         //findListBySql系列，受保护方法，只能dao内部调用
         messageDao.findListBySql();
