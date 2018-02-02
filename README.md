@@ -9,7 +9,7 @@
 7、支持TCC分布式事物。<br>
 
 ## Use
-####1、添加jar依赖
+#### 1、添加jar依赖
 ```xml
 <dependency>
     <groupId>com.github.zhouyutong</groupId>
@@ -33,6 +33,58 @@
     </repository>
 </repositories>
 ```
-####2、配置事物管理（可选）,配置daoSettingBean
+#### 2、配置事物管理（可选）,配置daoSettingBean
+```java
+@Bean(name = "jdbcSettings")
+public JdbcSettings jdbcSettings_rrc(DataSource masterDataSource, DataSource slaveDataSource) {
+    List<DataSource> masterDataSourceList = Lists.newArrayList(masterDataSource);
+    List<DataSource> slaveDataSourceList = Lists.newArrayList(slaveDataSource);
+
+    JdbcSettings jdbcSettings = new JdbcSettings();
+    jdbcSettings.setDialectEnum(DialectEnum.MYSQL);
+    jdbcSettings.setWriteDataSource(masterDataSourceList);
+    jdbcSettings.setReadDataSource(slaveDataSourceList);
+    return jdbcSettings;
+}
+
+@Bean(name = "transactionManager")
+public TransactionManager transactionManager_rrc(DataSource masterDataSource) {
+    PlatformTransactionManager platformTransactionManager = new DataSourceTransactionManager(masterDataSource);
+    TransactionManager transactionManager = new TransactionManager();
+    transactionManager.setTxManager(platformTransactionManager);
+    return transactionManager;
+}
+```
+#### 3、使用dao
+```java
+@Dao(settingBeanName = "jdbcSettings_sale")
+@Repository
+public class MessageDao extends JdbcBaseDao<MessageEntity> {
+}
+
+@Service
+public class MessageService {
+    @Autowired
+    private MessageDao messageDao;
+    
+    public void demo() {
+        //findListBySql系列，受保护方法，只能dao内部调用
+        messageDao.findListBySql();
+        //findOneBySql系列，受保护方法，只能dao内部调用
+        messageDao.findOneBySql();
+        //findListByQuery系列
+        messageDao.findListByQuery();
+        //findOneByQuery系列
+        messageDao.findOneByQuery();
+        //findOne系列
+        messageDao.findOne();
+        //findList系列
+        messageDao.findList();
+         //update系列
+        messageDao.update();
+        
+    }
+}
+```
 
 # 作者联系：qq101109677
