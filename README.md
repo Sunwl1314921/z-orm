@@ -8,7 +8,7 @@
 6、目前支持的NOSQL包括elasticsearch，未来将计划支持MongoDB、Cassandra 和 HBase。<br>
 7、支持TCC分布式事物。<br>
 
-## Use
+## QuickStart
 #### 1、添加jar依赖
 ```xml
 <dependency>
