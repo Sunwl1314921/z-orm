@@ -8,7 +8,8 @@
 6、目前支持的NOSQL包括elasticsearch，未来将计划支持MongoDB、Cassandra 和 HBase。<br>
 7、支持TCC分布式事物。<br>
 
-# Use
+## Use
+####1、添加jar依赖
 ```xml
 <dependency>
     <groupId>com.github.zhouyutong</groupId>
@@ -32,4 +33,6 @@
     </repository>
 </repositories>
 ```
+####2、配置事物管理（可选）,配置daoSettingBean
+
 # 作者联系：qq101109677
