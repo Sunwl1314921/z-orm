@@ -1,9 +1,9 @@
 package com.github.zhouyutong.zorm.dao.jdbc;
 
 import com.github.zhouyutong.zorm.constant.MixedConstant;
+import com.github.zhouyutong.zorm.dao.AbstractBaseDao;
 import com.github.zhouyutong.zorm.dao.DaoHelper;
 import com.github.zhouyutong.zorm.dao.DatabaseRouter;
-import com.github.zhouyutong.zorm.dao.IBaseDao;
 import com.github.zhouyutong.zorm.dao.jdbc.enums.DialectEnum;
 import com.github.zhouyutong.zorm.entity.IdEntity;
 import com.github.zhouyutong.zorm.exception.DaoException;
@@ -46,7 +46,7 @@ import static com.github.zhouyutong.zorm.dao.jdbc.JdbcHelper.*;
  * @since 2015/11/24
  */
 @Slf4j
-public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDao<T> {
+public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements ApplicationContextAware {
 
     private Class<T> entityClass;
     private EntityMapper<T> entityMapper;
@@ -113,7 +113,7 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     }
 
     @Override
-    public long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         checkArgument(sql);
 
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
@@ -150,7 +150,7 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     }
 
     @Override
-    public T findOneBySql(String sqlOrgin, LinkedHashMap<String, Object> param) throws DaoException {
+    protected T findOneBySql(String sqlOrgin, LinkedHashMap<String, Object> param) throws DaoException {
         checkArgument(sqlOrgin);
 
         List<T> entityList = this.findListBySql(sqlOrgin, param);
@@ -209,7 +209,7 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     }
 
     @Override
-    public List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         checkArgument(sql);
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
 
@@ -335,7 +335,7 @@ public abstract class JdbcBaseDao<T> implements ApplicationContextAware, IBaseDa
     }
 
     @Override
-    public int updateBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected int updateBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         checkArgument(sql);
 
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());

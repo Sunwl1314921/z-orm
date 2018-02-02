@@ -1,10 +1,9 @@
 package com.github.zhouyutong.zorm.dao.elasticsearch;
 
 import com.github.zhouyutong.zorm.annotation.PK;
-import com.github.zhouyutong.zorm.constant.DBConstant;
 import com.github.zhouyutong.zorm.constant.MixedConstant;
+import com.github.zhouyutong.zorm.dao.AbstractBaseDao;
 import com.github.zhouyutong.zorm.dao.DaoHelper;
-import com.github.zhouyutong.zorm.dao.IBaseDao;
 import com.github.zhouyutong.zorm.entity.IdEntity;
 import com.github.zhouyutong.zorm.exception.DaoException;
 import com.github.zhouyutong.zorm.exception.DaoExceptionTranslator;
@@ -60,7 +59,7 @@ import java.util.List;
  * @Date 2017/4/20
  */
 @Slf4j
-public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware, IBaseDao<T> {
+public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> implements ApplicationContextAware{
 
     private ElasticSearchSettings elasticSearchSettings;
     private String index;
@@ -139,7 +138,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
     }
 
     @Override
-    public long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         DaoHelper.checkArgument(sql);
         try {
             Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
@@ -213,7 +212,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
     }
 
     @Override
-    public T findOneBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected T findOneBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         DaoHelper.checkArgument(sql);
 
         try {
@@ -322,7 +321,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
     }
 
     @Override
-    public List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         DaoHelper.checkArgument(sql);
 
         try {
@@ -555,7 +554,7 @@ public abstract class ElasticSearchBaseDao<T> implements ApplicationContextAware
     }
 
     @Override
-    public int updateBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected int updateBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         throw new DaoException("ElasticSearchBaseDao do not support The Method");
     }
 
