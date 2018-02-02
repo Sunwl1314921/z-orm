@@ -74,13 +74,13 @@ public class MessageService {
      */
     public void demo() {
         //findListBySql系列，受保护方法，只能dao内部调用
-        messageDao.findListBySql();
+        messageDao.findListBySql(String sql);
         //findOneBySql系列，受保护方法，只能dao内部调用
-        messageDao.findOneBySql();
+        messageDao.findOneBySql(String sql);
         //findListByQuery系列
-        messageDao.findListByQuery();
+        messageDao.findListByQuery(Query query);
         //findOneByQuery系列
-        messageDao.findOneByQuery();
+        messageDao.findOneByQuery(Query query);
         //findOne系列
         messageDao.findOne();
         //findList系列
