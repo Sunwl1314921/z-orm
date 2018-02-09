@@ -36,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.github.zhouyutong.zorm.constant.MixedConstant.*;
 import static com.github.zhouyutong.zorm.dao.DaoHelper.*;
 import static com.github.zhouyutong.zorm.dao.jdbc.JdbcHelper.*;
 
@@ -144,9 +145,9 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     public T findOneByQuery(Query query) throws DaoException {
         checkArgumentQuery(query);
 
-        query.offset(MixedConstant.INT_0).limit(MixedConstant.INT_1);
+        query.offset(INT_0).limit(MixedConstant.INT_1);
         List<T> entityList = this.findListByQuery(query);
-        return CollectionUtils.isEmpty(entityList) ? null : entityList.get(MixedConstant.INT_0);
+        return CollectionUtils.isEmpty(entityList) ? null : entityList.get(INT_0);
     }
 
     @Override
@@ -154,7 +155,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         checkArgument(sqlOrgin);
 
         List<T> entityList = this.findListBySql(sqlOrgin, param);
-        return CollectionUtils.isEmpty(entityList) ? null : entityList.get(MixedConstant.INT_0);
+        return CollectionUtils.isEmpty(entityList) ? null : entityList.get(INT_0);
     }
 
     @Override
@@ -257,7 +258,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                     ps = connection.prepareStatement(insertSqlToUse, new String[]{entityMapper.getPkFieldName()});
                 }
 
-                int i = MixedConstant.INT_0;
+                int i = INT_0;
                 for (Object value : valueList) {
                     StatementCreatorUtils.setParameterValue(ps, ++i, SqlTypeValue.TYPE_UNKNOWN, value);
                 }
