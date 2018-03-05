@@ -13,12 +13,12 @@
 #### 1、添加jar依赖
 ```xml
 <dependency>
-    <groupId>com.github.zhouyutong</groupId>
+    <groupId>com.zhouyutong</groupId>
     <artifactId>z-orm-elasticsearch</artifactId>
     <version>1.0-SNAPSHOT</version>
 </dependency>
 <dependency>
-    <groupId>com.github.zhouyutong</groupId>
+    <groupId>com.zhouyutong</groupId>
     <artifactId>z-orm-jdbc</artifactId>
     <version>1.0-SNAPSHOT</version>
 </dependency>
