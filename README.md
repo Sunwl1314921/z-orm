@@ -22,17 +22,6 @@
     <artifactId>z-orm-jdbc</artifactId>
     <version>1.0-SNAPSHOT</version>
 </dependency>
-
-<repositories>
-    <repository>
-        <id>zhouyutong-mvn-repo-snapshot</id>
-        <url>https://raw.githubusercontent.com/zhouyutong/maven-repo/snapshot/</url>
-    </repository>
-    <repository>
-        <id>zhouyutong-mvn-repo-release</id>
-        <url>https://raw.githubusercontent.com/zhouyutong/maven-repo/release/</url>
-    </repository>
-</repositories>
 ```
 #### 2、配置事物管理（可选）,配置daoSettingBean
 ```java
