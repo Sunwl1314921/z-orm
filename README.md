@@ -12,11 +12,13 @@
 ## QuickStart
 #### 1、添加jar依赖
 ```xml
+<!--使用elasticsearch引入-->
 <dependency>
     <groupId>com.zhouyutong</groupId>
     <artifactId>z-orm-elasticsearch</artifactId>
     <version>1.0-SNAPSHOT</version>
 </dependency>
+<!--使用jdbc引入-->
 <dependency>
     <groupId>com.zhouyutong</groupId>
     <artifactId>z-orm-jdbc</artifactId>
