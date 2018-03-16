@@ -24,6 +24,19 @@
     <artifactId>z-orm-jdbc</artifactId>
     <version>1.0-SNAPSHOT</version>
 </dependency>
+<!--发布到您自己公司的私服地址-->
+<distributionManagement>
+    <repository>
+        <id>release</id>
+        <name>Nexus Release Repository</name>
+        <url>http://{私服地址}/nexus/content/repositories/releases/</url>
+    </repository>
+    <snapshotRepository>
+        <id>snapshot</id>
+        <name>Nexus Snapshot Repository</name>
+        <url>http://{私服地址}/nexus/content/repositories/snapshots/</url>
+    </snapshotRepository>
+</distributionManagement>
 ```
 #### 2、配置事物管理（可选）,配置daoSettingBean
 ```java
