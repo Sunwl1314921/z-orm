@@ -53,7 +53,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
- * 基于ElasticSearch 5.3 TransportClient的Dao实现
+ * 基于ElasticSearch5.4.3 TransportClient的Dao实现
  *
  * @author zhouyutong
  * @Date 2017/4/20
