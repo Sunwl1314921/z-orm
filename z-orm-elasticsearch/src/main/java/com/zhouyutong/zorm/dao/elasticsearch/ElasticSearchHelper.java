@@ -1,5 +1,6 @@
 package com.zhouyutong.zorm.dao.elasticsearch;
 
+import com.google.common.collect.Lists;
 import com.zhouyutong.zorm.annotation.PK;
 import com.zhouyutong.zorm.constant.MixedConstant;
 import com.zhouyutong.zorm.dao.DaoHelper;
@@ -8,30 +9,20 @@ import com.zhouyutong.zorm.entity.IdEntity;
 import com.zhouyutong.zorm.exception.DaoException;
 import com.zhouyutong.zorm.query.Criteria;
 import com.zhouyutong.zorm.query.CriteriaOperators;
-import com.zhouyutong.zorm.query.GroupBy;
-import com.zhouyutong.zorm.utils.BeanUtils;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.zhouyutong.zorm.query.Update;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import static org.elasticsearch.index.query.QueryBuilders.*;
 
@@ -41,17 +32,8 @@ import static org.elasticsearch.index.query.QueryBuilders.*;
  * @Date 2017/5/11
  */
 public final class ElasticSearchHelper {
-    /**
-     * es 5.4.3版本默认的size是10
-     */
-    public static final int DEFAULT_SIZE = 10;
-    /**
-     * 批量更新最大数量
-     */
-    public static final int MAX_UPDATE_SIZE = 1000;
     public static final char COMMON_WILDCARD = '%';
     public static final char ES_WILDCARD = '*';
-    public static final String ES_VERSION_FIELD_NAME = "esVersion";
 
     private ElasticSearchHelper() {
     }
@@ -64,7 +46,7 @@ public final class ElasticSearchHelper {
      */
     public static QueryBuilder criteria2QueryBuilder(Criteria criteria) {
         if (criteria == null) {
-            return null;
+            return QueryBuilders.matchAllQuery();
         }
         BoolQueryBuilder boolQueryBuilder = boolQuery();
         List<Criteria> criterias = criteria.getCriteriaChain();
@@ -117,7 +99,7 @@ public final class ElasticSearchHelper {
         return fields.toArray(new String[fields.size()]);
     }
 
-    static <T> List<T> getEntityList(SearchResponse searchResponse, Class<T> entityClass, boolean hasEsVersionFiled) {
+    static <T> List<T> getEntityList(SearchResponse searchResponse, Class<T> entityClass) {
         SearchHits searchHits = searchResponse.getHits();
         if (searchHits.getTotalHits() == MixedConstant.LONG_0) {
             return Collections.emptyList();
@@ -125,154 +107,31 @@ public final class ElasticSearchHelper {
 
         List<T> entityList = Lists.newArrayList();
         for (SearchHit searchHit : searchHits.getHits()) {
-            String source = setEsVersion(searchHit, hasEsVersionFiled);
+            String source = searchHit.getSourceAsString();
             entityList.add(FastJson.jsonStr2Object(source, entityClass));
         }
         return entityList;
     }
 
-    /**
-     * 聚合的处理
-     *
-     * @param groupByList -
-     * @return
-     */
-    static TermsAggregationBuilder groupBy2AggregationBuilder(List<GroupBy> groupByList) {
-        if (groupByList.size() > 1) { //暂时只支持一个
-            throw new DaoException("ElasticSearchBaseDao最多支持1个group by");
-        }
-        GroupBy groupBy = groupByList.get(0);
-        String key = groupBy.getKey();
-        /**String groupCountAlias = groupBy.getGroupCountAlias();*/
-        String termsName = key + "_group";
-        return AggregationBuilders.terms(termsName).field(key);
-    }
-
-    /**
-     * 得到聚合的结果entity list
-     *
-     * @param searchResponse -
-     * @param entityClass    -
-     * @param groupByList    -
-     * @return
-     */
-    static <T> List<T> getAggregationEntityList(SearchResponse searchResponse, Class<T> entityClass, List<GroupBy> groupByList) {
-        if (groupByList.size() > 1) { //暂时只支持一个
-            throw new DaoException("ElasticSearchBaseDao最多支持1个group by");
-        }
-        GroupBy groupBy = groupByList.get(0);
-        String key = groupBy.getKey();
-        String groupCountAlias = groupBy.getGroupCountAlias();
-        String termsName = key + "_group";
-
-        List<T> entityList = Lists.newArrayList();
-        Terms terms = searchResponse.getAggregations().get(termsName);
-        if (terms == null) {
-            return entityList;
-        }
-
-        for (Terms.Bucket entry : terms.getBuckets()) {
-            Map<String, Object> aggMap = Maps.newLinkedHashMap();
-            aggMap.put(key, entry.getKey());
-            if (StringUtils.isNotBlank(groupCountAlias)) {
-                aggMap.put(groupCountAlias, entry.getDocCount());
-            }
-            entityList.add(BeanUtils.mapToBean(aggMap, entityClass));
-        }
-        return entityList;
-    }
-
-    static <T> T getEntity(SearchResponse searchResponse, Class<T> entityClass, boolean hasEsVersionFiled) {
+    static <T> T getEntity(SearchResponse searchResponse, Class<T> entityClass) {
         SearchHits searchHits = searchResponse.getHits();
         if (searchHits.getTotalHits() == MixedConstant.LONG_0) {
             return null;
         }
 
         SearchHit searchHit = searchHits.getHits()[MixedConstant.INT_0];
-        String source = setEsVersion(searchHit, hasEsVersionFiled);
+        String source = searchHit.getSourceAsString();
         return FastJson.jsonStr2Object(source, entityClass);
     }
-
-    /**
-     * 判断一个es entity是否带有version字段
-     *
-     * @param entityClass -
-     * @return
-     */
-    static boolean hasEsVersionField(Class<?> entityClass) {
-        try {
-            return null != entityClass.getDeclaredField(ES_VERSION_FIELD_NAME);
-        } catch (NoSuchFieldException e) {
-        }
-        return false;
-    }
-
-    /**
-     * 设置version字段
-     *
-     * @param searchHit         -
-     * @param hasEsVersionFiled -
-     * @return
-     */
-    static String setEsVersion(SearchHit searchHit, boolean hasEsVersionFiled) {
-        StringBuilder sb = new StringBuilder(searchHit.getSourceAsString());
-        if (hasEsVersionFiled) {
-            sb.deleteCharAt(sb.length() - MixedConstant.INT_1);//去掉最后一个}
-            sb.append(",\"").append(ES_VERSION_FIELD_NAME).append("\":").append(searchHit.getVersion()).append("}");
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 设置version字段
-     *
-     * @param response          -
-     * @param hasEsVersionFiled -
-     * @return
-     */
-    static String setEsVersion(GetResponse response, boolean hasEsVersionFiled) {
-        StringBuilder sb = new StringBuilder(response.getSourceAsString());
-        if (hasEsVersionFiled) {
-            sb.deleteCharAt(sb.length() - MixedConstant.INT_1);//去掉最后一个}
-            sb.append(",\"").append(ES_VERSION_FIELD_NAME).append("\":").append(response.getVersion()).append("}");
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 设置version字段
-     *
-     * @param entity            -
-     * @param version           -
-     * @param hasEsVersionFiled -
-     * @return
-     */
-    static void setEsVersion(Object entity, long version, boolean hasEsVersionFiled) {
-        if (hasEsVersionFiled) {
-            try {
-                Field field = entity.getClass().getDeclaredField(ES_VERSION_FIELD_NAME);
-                field.setAccessible(true);
-                field.setLong(entity, version);
-            } catch (Exception e) {
-                throw new DaoException("cat not set version field for Entity[" + entity.getClass().getSimpleName() + "],please check field's type is long", e);
-            }
-        }
-    }
-
 
     /**
      * 插入文档生成持久化的json字符串
      *
      * @param entity                       -
-     * @param hasEsVersionFiled            -
      * @param notNeedTransientPropertyList -
      * @return
      */
-    static String getSourceJsonStrWhenInsert(Object entity, boolean hasEsVersionFiled, List<String> notNeedTransientPropertyList) {
-        if (hasEsVersionFiled) {
-            notNeedTransientPropertyList.add(ES_VERSION_FIELD_NAME);
-        }
-
+    static String getSourceJsonStrWhenInsert(Object entity, List<String> notNeedTransientPropertyList) {
         String sourceJsonStr;
         if (notNeedTransientPropertyList.isEmpty()) {
             sourceJsonStr = FastJson.object2JsonStrUseNullValue(entity);
@@ -286,15 +145,10 @@ public final class ElasticSearchHelper {
      * 修改文档生成持久化的json字符串
      *
      * @param update                       -
-     * @param hasEsVersionFiled            -
      * @param notNeedTransientPropertyList -
      * @return
      */
-    static String getSourceJsonStrWhenUpdate(Update update, boolean hasEsVersionFiled, List<String> notNeedTransientPropertyList) {
-        if (hasEsVersionFiled) {
-            notNeedTransientPropertyList.add(ES_VERSION_FIELD_NAME);
-        }
-
+    static String getSourceJsonStrWhenUpdate(Update update, List<String> notNeedTransientPropertyList) {
         String sourceJsonStr;
         if (notNeedTransientPropertyList.isEmpty()) {
             sourceJsonStr = FastJson.object2JsonStrUseNullValue(update.getSetMap());
@@ -312,9 +166,9 @@ public final class ElasticSearchHelper {
         }
     }
 
-    static DaoException translateElasticSearchException(ElasticsearchException e) {
+    static DaoException translateElasticSearchException(Exception e) {
         /**
-         * 按照惯例通常limit=0表示查询所有的,但es5.4.3默认根据index.max_result_window配置form+size不能超过10000
+         * 按照惯例通常limit=0表示查询所有的,但es5默认根据index.max_result_window配置form+size不能超过10000
          * 所以这里要设置成很大的值让es抛出异常以便研发知道他没有得到期望的记录数
          * 官方提示：
          * {

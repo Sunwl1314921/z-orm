@@ -1,5 +1,6 @@
 package com.zhouyutong.zorm.dao.elasticsearch;
 
+import com.google.common.collect.Lists;
 import com.zhouyutong.zorm.annotation.PK;
 import com.zhouyutong.zorm.constant.MixedConstant;
 import com.zhouyutong.zorm.dao.AbstractBaseDao;
@@ -8,35 +9,27 @@ import com.zhouyutong.zorm.entity.IdEntity;
 import com.zhouyutong.zorm.exception.DaoException;
 import com.zhouyutong.zorm.exception.DaoExceptionTranslator;
 import com.zhouyutong.zorm.exception.DaoMethodParameterException;
-import com.google.common.collect.Lists;
 import com.zhouyutong.zorm.query.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
-import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.get.MultiGetItemResponse;
-import org.elasticsearch.action.get.MultiGetResponse;
-import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequestBuilder;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.update.UpdateRequestBuilder;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.lucene.uid.Versions;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.engine.VersionConflictEngineException;
-import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.IdsQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -53,20 +46,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
- * 基于ElasticSearch5.4.3 TransportClient的Dao实现
+ * 基于ElasticSearch6.2.3 RestHighLevelClient的Dao实现
  *
  * @author zhouyutong
  * @Date 2017/4/20
  */
 @Slf4j
-public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> implements ApplicationContextAware{
+public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> implements ApplicationContextAware {
 
     private ElasticSearchSettings elasticSearchSettings;
     private String index;
     private String type;
     private String pkFieldName;
     private Class<T> entityClass;
-    private boolean hasEsVersionFiled;  //含有es的version字段可使用ES的带版本更新
     private List<String> notNeedTransientPropertyList = Lists.newArrayList();   //不需要持久化的字段
     private ApplicationContext applicationContext;
 
@@ -78,84 +70,67 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     @Override
     public boolean exists(Serializable id) throws DaoException {
         DaoHelper.checkArgumentId(id);
-
         return this.exists(Criteria.where(pkFieldName, id));
     }
 
     @Override
     public boolean exists(Criteria criteria) throws DaoException {
         DaoHelper.checkArgumentCriteria(criteria);
-
         return null != this.findOne(Arrays.asList(pkFieldName), criteria);
     }
 
     @Override
     public long countByCriteria(Criteria criteria) throws DaoException {
-        DaoHelper.checkArgumentCriteria(criteria);
-
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            QueryBuilder queryBuilder = ElasticSearchHelper.criteria2QueryBuilder(criteria);
-            SearchRequestBuilder searchRequestBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type)
-                    .setFetchSource(false)
-                    .setFrom(MixedConstant.INT_0)
-                    .setSize(MixedConstant.INT_0);    //es自动转换为count模式
-            if (queryBuilder != null) {
-                searchRequestBuilder.setQuery(queryBuilder);
-            }
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+            SearchRequest searchRequest = new SearchRequest();
+            searchRequest.indices(index);
+            searchRequest.types(type);
+
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.query(ElasticSearchHelper.criteria2QueryBuilder(criteria))
+                    .fetchSource(false)
+                    .from(MixedConstant.INT_0)
+                    .size(MixedConstant.INT_0);
+            searchRequest.source(searchSourceBuilder);
 
             if (log.isDebugEnabled()) {
-                log.debug("countByCriteria searchRequestBuilder:" + searchRequestBuilder.toString());
+                log.debug("countByCriteria searchRequestBuilder:" + searchSourceBuilder.toString());
             }
-            SearchResponse searchResponse = searchRequestBuilder.get();
+            SearchResponse searchResponse = client.search(searchRequest);
             return searchResponse.getHits().getTotalHits();
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
         }
     }
 
     @Override
     public long countAll() throws DaoException {
-        try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            SearchRequestBuilder searchRequestBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type)
-                    .setFetchSource(false)
-                    .setFrom(MixedConstant.INT_0)
-                    .setSize(MixedConstant.INT_0);    //es自动转换为count模式
-
-            if (log.isDebugEnabled()) {
-                log.debug("countAll searchRequestBuilder:" + searchRequestBuilder.toString());
-            }
-            SearchResponse searchResponse = searchRequestBuilder.get();
-            return searchResponse.getHits().getTotalHits();
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
-        }
+        return countByCriteria(null);
     }
 
     @Override
     protected long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         DaoHelper.checkArgument(sql);
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            QueryBuilder queryBuilder = QueryBuilders.wrapperQuery(sql);
-            SearchRequestBuilder searchRequestBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type)
-                    .setFetchSource(false)
-                    .setQuery(queryBuilder)
-                    .setFrom(MixedConstant.INT_0)
-                    .setSize(MixedConstant.INT_0);    //es自动转换为count模式
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+            SearchRequest searchRequest = new SearchRequest();
+            searchRequest.indices(index);
+            searchRequest.types(type);
+
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.query(QueryBuilders.wrapperQuery(sql))
+                    .fetchSource(false)
+                    .from(MixedConstant.INT_0)
+                    .size(MixedConstant.INT_0);
+            searchRequest.source(searchSourceBuilder);
+
             if (log.isDebugEnabled()) {
-                log.debug("countBySql searchRequestBuilder:" + searchRequestBuilder.toString());
+                log.debug("countBySql searchRequestBuilder:" + searchSourceBuilder.toString());
             }
-            SearchResponse searchResponse = searchRequestBuilder.get();
+            SearchResponse searchResponse = client.search(searchRequest);
             return searchResponse.getHits().getTotalHits();
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
         }
     }
@@ -165,19 +140,16 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         DaoHelper.checkArgumentId(id);
 
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            GetResponse response = client.prepareGet()
-                    .setIndex(index)
-                    .setType(type)
-                    .setId(ElasticSearchHelper.getIdSerializable(id))
-                    .setOperationThreaded(false)
-                    .get();
-            if (!response.isExists()) {
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+            GetRequest getRequest = new GetRequest(index, type, ElasticSearchHelper.getIdSerializable(id));
+            GetResponse getResponse = client.get(getRequest);
+
+            if (!getResponse.isExists()) {
                 return null;
             }
-            String source = ElasticSearchHelper.setEsVersion(response, hasEsVersionFiled);
+            String source = getResponse.getSourceAsString();
             return FastJson.jsonStr2Object(source, entityClass);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
         }
     }
@@ -187,26 +159,27 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         DaoHelper.checkArgumentQuery(query);
 
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            QueryBuilder queryBuilder = ElasticSearchHelper.criteria2QueryBuilder(query.getCriteria());
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
             String[] includes = ElasticSearchHelper.includeFileds(query.getFields());
             String[] excludes = MixedConstant.EMPTY_STRING_ARRAY;
-            SearchRequestBuilder searchRequestBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type)
-                    .setFetchSource(includes, excludes)
-                    .setFrom(MixedConstant.INT_0)
-                    .setSize(MixedConstant.INT_1);
 
-            if (queryBuilder != null) {
-                searchRequestBuilder.setQuery(queryBuilder);
-            }
+            SearchRequest searchRequest = new SearchRequest();
+            searchRequest.indices(index);
+            searchRequest.types(type);
+
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.query(ElasticSearchHelper.criteria2QueryBuilder(query.getCriteria()))
+                    .fetchSource(includes, excludes)
+                    .from(MixedConstant.INT_0)
+                    .size(MixedConstant.INT_1);
+            searchRequest.source(searchSourceBuilder);
+
             if (log.isDebugEnabled()) {
-                log.debug("findOneByQuery searchRequestBuilder:" + searchRequestBuilder.toString());
+                log.debug("findOneByQuery searchRequestBuilder:" + searchSourceBuilder.toString());
             }
-            SearchResponse searchResponse = searchRequestBuilder.get();
-            return ElasticSearchHelper.getEntity(searchResponse, entityClass, hasEsVersionFiled);
-        } catch (RuntimeException e) {
+            SearchResponse searchResponse = client.search(searchRequest);
+            return ElasticSearchHelper.getEntity(searchResponse, entityClass);
+        } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
         }
     }
@@ -216,21 +189,23 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         DaoHelper.checkArgument(sql);
 
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            QueryBuilder queryBuilder = QueryBuilders.wrapperQuery(sql);
-            SearchRequestBuilder searchRequestBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type)
-                    .setQuery(queryBuilder)
-                    .setFrom(MixedConstant.INT_0)
-                    .setSize(MixedConstant.INT_1);
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+            SearchRequest searchRequest = new SearchRequest();
+            searchRequest.indices(index);
+            searchRequest.types(type);
+
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.query(QueryBuilders.wrapperQuery(sql))
+                    .from(MixedConstant.INT_0)
+                    .size(MixedConstant.INT_1);
+            searchRequest.source(searchSourceBuilder);
 
             if (log.isDebugEnabled()) {
-                log.debug("findOneBySql searchRequestBuilder:" + searchRequestBuilder.toString());
+                log.debug("findOneBySql searchRequestBuilder:" + searchSourceBuilder.toString());
             }
-            SearchResponse searchResponse = searchRequestBuilder.get();
-            return ElasticSearchHelper.getEntity(searchResponse, entityClass, hasEsVersionFiled);
-        } catch (RuntimeException e) {
+            SearchResponse searchResponse = client.search(searchRequest);
+            return ElasticSearchHelper.getEntity(searchResponse, entityClass);
+        } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
         }
     }
@@ -238,74 +213,69 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     @Override
     public List<T> findListByIds(List<Serializable> ids) throws DaoException {
         DaoHelper.checkArgumentIds(ids);
-
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            MultiGetResponse multiGetItemResponses = client.prepareMultiGet()
-                    .add(index, type, (Iterable) ids)
-                    .get();
-            List<T> entityList = Lists.newArrayList();
-            for (MultiGetItemResponse itemResponse : multiGetItemResponses) {
-                GetResponse response = itemResponse.getResponse();
-                if (response.isExists()) {
-                    String source = ElasticSearchHelper.setEsVersion(response, hasEsVersionFiled);
-                    entityList.add(FastJson.jsonStr2Object(source, entityClass));
-                }
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+
+            SearchRequest searchRequest = new SearchRequest();
+            searchRequest.indices(index);
+            searchRequest.types(type);
+
+            IdsQueryBuilder idsQueryBuilder = QueryBuilders.idsQuery();
+            idsQueryBuilder.addIds(ids.toArray(new String[ids.size()]));
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.query(idsQueryBuilder);
+            searchRequest.source(searchSourceBuilder);
+
+            if (log.isDebugEnabled()) {
+                log.debug("findListByIds searchRequestBuilder:" + searchSourceBuilder.toString());
             }
-            return entityList;
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+            SearchResponse searchResponse = client.search(searchRequest);
+            return ElasticSearchHelper.getEntityList(searchResponse, entityClass);
+        } catch (Exception e) {
+            throw ElasticSearchHelper.translateElasticSearchException(e);
         }
     }
 
     @Override
     public List<T> findListByQuery(Query query) throws DaoException {
         DaoHelper.checkArgumentQuery(query);
+        if (CollectionUtils.isNotEmpty(query.getGroupBys())) { //聚合使用findListBySql
+            throw new DaoMethodParameterException("findListByQuery not support groupBy Search");
+        }
 
         try {
-
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
             String[] includes = ElasticSearchHelper.includeFileds(query.getFields());
             String[] excludes = MixedConstant.EMPTY_STRING_ARRAY;
-            SearchRequestBuilder searchRequestBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type)
-                    .setFetchSource(includes, excludes);
-
-            QueryBuilder queryBuilder = ElasticSearchHelper.criteria2QueryBuilder(query.getCriteria());
-            if (queryBuilder != null) {
-                searchRequestBuilder.setQuery(queryBuilder);
-            }
             int from = query.getOffset() < MixedConstant.INT_0 ? MixedConstant.INT_0 : query.getOffset();
             int size = query.getLimit() < MixedConstant.INT_1 ? Integer.MAX_VALUE : query.getLimit();
 
-            //支持简单聚合 TODO：复杂聚合需要使用bySql
-            if (CollectionUtils.isNotEmpty(query.getGroupBys())) {
-                searchRequestBuilder.setSize(MixedConstant.INT_0);
-                searchRequestBuilder.setFetchSource(false);
-                TermsAggregationBuilder termsAggregationBuilder = ElasticSearchHelper.groupBy2AggregationBuilder(query.getGroupBys());
-                termsAggregationBuilder.size(size);
-                searchRequestBuilder.addAggregation(termsAggregationBuilder);
-                if (log.isDebugEnabled()) {
-                    log.debug("findListByQuery searchRequestBuilder:" + searchRequestBuilder.toString());
-                }
-                SearchResponse searchResponse = searchRequestBuilder.get();
-                return ElasticSearchHelper.getAggregationEntityList(searchResponse, entityClass, query.getGroupBys());
-            } else {
-                if (CollectionUtils.isNotEmpty(query.getOrderBys())) {
-                    for (OrderBy orderBy : query.getOrderBys()) {
-                        String field = orderBy.getKey();
-                        String direction = orderBy.getDirection();
-                        SortOrder order = OrderBy.Direction.ASC.getDirection().equals(direction) ? SortOrder.ASC : SortOrder.DESC;
-                        searchRequestBuilder.addSort(field, order);
-                    }
-                }
+            SearchRequest searchRequest = new SearchRequest();
+            searchRequest.indices(index);
+            searchRequest.types(type);
 
-                queryOverloadProtect(searchRequestBuilder, from, size, queryBuilder);
-                return nonScrollQuery(searchRequestBuilder);
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            searchSourceBuilder.query(ElasticSearchHelper.criteria2QueryBuilder(query.getCriteria()))
+                    .fetchSource(includes, excludes)
+                    .from(from)
+                    .size(size);
+            if (CollectionUtils.isNotEmpty(query.getOrderBys())) {
+                for (OrderBy orderBy : query.getOrderBys()) {
+                    String field = orderBy.getKey();
+                    String direction = orderBy.getDirection();
+                    SortOrder order = OrderBy.Direction.ASC.getDirection().equals(direction) ? SortOrder.ASC : SortOrder.DESC;
+                    searchSourceBuilder.sort(field, order);
+                }
             }
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+            searchRequest.source(searchSourceBuilder);
+
+            if (log.isDebugEnabled()) {
+                log.debug("findListByQuery searchRequestBuilder:" + searchSourceBuilder.toString());
+            }
+            SearchResponse searchResponse = client.search(searchRequest);
+            return ElasticSearchHelper.getEntityList(searchResponse, entityClass);
+        } catch (Exception e) {
+            throw ElasticSearchHelper.translateElasticSearchException(e);
         }
     }
 
@@ -323,54 +293,52 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     @Override
     protected List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
         DaoHelper.checkArgument(sql);
+        if (param == null) {
+            throw new DaoMethodParameterException("Param param must be not null");
+        }
 
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            SearchRequestBuilder searchRequestBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type);
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
 
-            QueryBuilder queryBuilder = null;
-            if (StringUtils.isNotBlank(sql)) {
-                queryBuilder = QueryBuilders.wrapperQuery(sql);
-                searchRequestBuilder.setQuery(queryBuilder);
+            SearchRequest searchRequest = new SearchRequest();
+            searchRequest.indices(index);
+            searchRequest.types(type);
+
+
+            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+            String aggKey = "AggregationBuilder";
+            if (param.containsKey(aggKey)) {    //有聚合
+                AggregationBuilder aggregationBuilder = (AggregationBuilder) param.get(aggKey);
+                searchSourceBuilder.from(MixedConstant.INT_0)
+                        .size(MixedConstant.INT_0)
+                        .fetchSource(false);
+                searchSourceBuilder.aggregation(aggregationBuilder);
+            } else {    //无聚合
+                int from = MapUtils.getIntValue(param, "from", MixedConstant.INT_0);
+                int size = MapUtils.getIntValue(param, "size", Integer.MAX_VALUE);
+                String[] includes = param.containsKey("includes") ? (String[]) param.get("includes") : MixedConstant.EMPTY_STRING_ARRAY;
+                String[] excludes = param.containsKey("excludes") ? (String[]) param.get("excludes") : MixedConstant.EMPTY_STRING_ARRAY;
+                searchSourceBuilder.query(QueryBuilders.wrapperQuery(sql))
+                        .from(from)
+                        .size(size)
+                        .fetchSource(includes, excludes);
             }
 
-            int from = MapUtils.getIntValue(param, "form", MixedConstant.INT_0);
-            int size = MapUtils.getIntValue(param, "size", Integer.MAX_VALUE);
+            searchRequest.source(searchSourceBuilder);
+            if (log.isDebugEnabled()) {
+                log.debug("findListBySql searchRequestBuilder:" + searchSourceBuilder.toString());
+            }
+            SearchResponse searchResponse = client.search(searchRequest);
 
-            if (param != null && param.get("aggregations") != null) {  //复杂聚合
-                TermsAggregationBuilder termsAggregationBuilder = (TermsAggregationBuilder) param.get("aggregations");
-                searchRequestBuilder.setSize(MixedConstant.INT_0);
-                searchRequestBuilder.setFetchSource(false);
-                termsAggregationBuilder.size(size);
-                searchRequestBuilder.addAggregation(termsAggregationBuilder);
-                if (log.isDebugEnabled()) {
-                    log.debug("findListBySql searchRequestBuilder:" + searchRequestBuilder.toString());
-                }
-                SearchResponse searchResponse = searchRequestBuilder.get();
-                param.put("aggregationResult", searchResponse.getAggregations());
+            if (param.containsKey(aggKey)) {    //有聚合
+                param.put("AggregationResult", searchResponse.getAggregations());
                 return Collections.emptyList();
-            } else {    //正常查询没有聚合
-                queryOverloadProtect(searchRequestBuilder, from, size, queryBuilder);
-                return nonScrollQuery(searchRequestBuilder);
+            } else {   //无聚合
+                return ElasticSearchHelper.getEntityList(searchResponse, entityClass);
             }
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
-        }
-    }
-
-    private List<T> nonScrollQuery(SearchRequestBuilder searchRequestBuilder) {
-        if (log.isDebugEnabled()) {
-            log.debug("nonScrollQuery searchRequestBuilder:" + searchRequestBuilder.toString());
-        }
-        SearchResponse searchResponse;
-        try {
-            searchResponse = searchRequestBuilder.get();
-        } catch (ElasticsearchException e) {
+        } catch (Exception e) {
             throw ElasticSearchHelper.translateElasticSearchException(e);
         }
-        return ElasticSearchHelper.getEntityList(searchResponse, entityClass, hasEsVersionFiled);
     }
 
     @Override
@@ -378,23 +346,22 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         DaoHelper.checkArgumentEntity(entity);
 
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
 
             IdEntity idEntity = (IdEntity) entity;
             Field pkField = DaoHelper.getPkField(idEntity);
             Object pkValue = DaoHelper.getColumnValue(pkField, idEntity);
             boolean hasSetPkValue = DaoHelper.hasSetPkValue(pkValue);
 
-            IndexRequestBuilder indexRequestBuilder = client.prepareIndex(index, type);
+            IndexRequest indexRequest = new IndexRequest(index, type);
+            indexRequest.create(true);
             if (hasSetPkValue) {
-                indexRequestBuilder.setId(pkValue.toString()).setCreate(true);
+                indexRequest.id(pkValue.toString());
             }
 
-            String sourceJsonStr = ElasticSearchHelper.getSourceJsonStrWhenInsert(entity, hasEsVersionFiled, notNeedTransientPropertyList);
-            indexRequestBuilder.setSource(sourceJsonStr, XContentType.JSON);
-
-            IndexResponse indexResponse = indexRequestBuilder.get();
-
+            String sourceJsonStr = ElasticSearchHelper.getSourceJsonStrWhenInsert(entity, notNeedTransientPropertyList);
+            indexRequest.source(sourceJsonStr, XContentType.JSON);
+            IndexResponse indexResponse = client.index(indexRequest);
             /**
              * 插入完成后把es自动生成的id设置回entity
              */
@@ -402,14 +369,12 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 String idAfterInsert = indexResponse.getId();
                 DaoHelper.setColumnValue(pkField, idEntity, idAfterInsert);
             }
-
             /**
              * 插入完成后把es的version设置到entity
              */
             long version = indexResponse.getVersion();
-            ElasticSearchHelper.setEsVersion(entity, version, hasEsVersionFiled);
             return new Long(version).intValue();         //新创建的文档版本都从1开始
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
         }
     }
@@ -435,56 +400,22 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         DaoHelper.checkArgumentId(id);
         DaoHelper.checkArgumentUpdate(update);
 
-        Long oldVersion;
         try {
-            //带版本更新
-            oldVersion = (Long) update.get(ElasticSearchHelper.ES_VERSION_FIELD_NAME);
-            if (oldVersion == null || oldVersion.longValue() <= MixedConstant.LONG_0) {
-                oldVersion = Versions.MATCH_ANY;
-            }
-        } catch (RuntimeException e) {
-            throw new DaoException("The id[" + id + "] use version update, value must be long type[" + update.toString() + "]");
-        }
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+            UpdateRequest request = new UpdateRequest(index, type, ElasticSearchHelper.getIdSerializable(id));
+            request.doc(ElasticSearchHelper.getSourceJsonStrWhenUpdate(update, notNeedTransientPropertyList), XContentType.JSON);
+            request.retryOnConflict(3); //版本冲突重试3次
+            request.docAsUpsert(false); //只更新
 
-        try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            UpdateRequestBuilder updateRequestBuilder = client.prepareUpdate()
-                    .setIndex(index)
-                    .setType(type)
-                    .setId(ElasticSearchHelper.getIdSerializable(id))
-                    .setVersion(oldVersion)
-                    .setDoc(ElasticSearchHelper.getSourceJsonStrWhenUpdate(update, hasEsVersionFiled, notNeedTransientPropertyList), XContentType.JSON);
-
-
-            UpdateResponse updateResponse = updateRequestBuilder.get();
+            UpdateResponse updateResponse = client.update(request);
             int op = updateResponse.getResult().getOp();
             if (op == DocWriteResponse.Result.NOOP.getOp()) {   //值没有变化,_version不会增加
                 return MixedConstant.INT_0;
             }
             return MixedConstant.INT_1;
-        } catch (VersionConflictEngineException e) {
-            if (oldVersion == Versions.MATCH_ANY) {
-                this.refresh();
-                return this.updateById(id, update);
-            } else {
-                throw DaoExceptionTranslator.translate(e);
-            }
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
         }
-    }
-
-    private void refresh() {
-        long start = System.currentTimeMillis();
-        Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-        RefreshResponse response = client.admin().indices().refresh(new RefreshRequest(index)).actionGet();
-        long time = System.currentTimeMillis() - start;
-        if (response.getShardFailures().length == response.getTotalShards()) {
-            log.info("refresh index[" + index + "] failed[" + response.getShardFailures() + "], time:" + time);
-        } else if (response.getShardFailures().length > 0) {
-            log.info("refresh index[" + index + "] part failed[" + response.getShardFailures() + "], time:" + time);
-        }
-        log.info("refresh index[" + index + "] success, time:" + time);
     }
 
     @Override
@@ -492,65 +423,18 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         DaoHelper.checkArgumentIds(ids);
         DaoHelper.checkArgumentUpdate(update);
 
-        if (ids.size() > ElasticSearchHelper.MAX_UPDATE_SIZE) {
-            throw new DaoMethodParameterException("单次更新的记录多于" + ElasticSearchHelper.MAX_UPDATE_SIZE + "拒绝批量更新");
-        }
-
         int count = MixedConstant.INT_0;
         for (Serializable id : ids) {
-            int n = this.updateById(id, update);
-            count += n;
+            if (MixedConstant.INT_1 == this.updateById(id, update)) {
+                count++;
+            }
         }
         return count;
     }
 
     @Override
     public int updateByCriteria(Criteria criteria, Update update) throws DaoException {
-        DaoHelper.checkArgumentCriteria(criteria);
-        DaoHelper.checkArgumentUpdate(update);
-
-        try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            QueryBuilder queryBuilder = ElasticSearchHelper.criteria2QueryBuilder(criteria);
-
-            if (log.isDebugEnabled()) {
-                log.debug("updateByCriteria queryBuilder:" + queryBuilder.toString());
-            }
-
-            int from = MixedConstant.INT_0;
-            int size = new Long(countByCriteria(criteria)).intValue();
-            if (size > ElasticSearchHelper.MAX_UPDATE_SIZE) {
-                throw new DaoException("方法updateByCriteria查询条件[" + queryBuilder.toString() + "]命中文档多于" + ElasticSearchHelper.MAX_UPDATE_SIZE + "拒绝批量更新");
-            }
-
-            SearchRequestBuilder searchRequestBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type)
-                    .setFetchSource(false)
-                    .setFrom(from)
-                    .setSize(size);
-
-            if (queryBuilder != null) {
-                searchRequestBuilder.setQuery(queryBuilder);
-            }
-            if (log.isDebugEnabled()) {
-                log.debug("updateByCriteria searchRequestBuilder:" + searchRequestBuilder.toString());
-            }
-            SearchResponse searchResponse = searchRequestBuilder.get();
-            SearchHits searchHits = searchResponse.getHits();
-            if (searchHits.getTotalHits() == MixedConstant.LONG_0) {
-                return MixedConstant.INT_0;
-            }
-
-            List<Serializable> ids = Lists.newArrayList();
-            for (SearchHit searchHit : searchHits.getHits()) {
-                String id = searchHit.getId();
-                ids.add(id);
-            }
-            return this.updateByIds(ids, update);
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
-        }
+        throw new DaoException("ElasticSearchBaseDao do not support The Method");
     }
 
     @Override
@@ -563,19 +447,16 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         DaoHelper.checkArgumentId(id);
 
         try {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            DeleteResponse deleteResponse = client.prepareDelete()
-                    .setIndex(index)
-                    .setType(type)
-                    .setId(ElasticSearchHelper.getIdSerializable(id))
-                    .get();
+            RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+            DeleteRequest deleteRequest = new DeleteRequest(index, type, ElasticSearchHelper.getIdSerializable(id));
+            DeleteResponse deleteResponse = client.delete(deleteRequest);
 
             int op = deleteResponse.getResult().getOp();
             if (op == DocWriteResponse.Result.NOT_FOUND.getOp()) {
                 return MixedConstant.INT_0;
             }
             return MixedConstant.INT_1;
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
         }
     }
@@ -710,32 +591,6 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         return this.findListByQuery(query, pageable);
     }
 
-    /**
-     * 查询过载保护
-     */
-    private void queryOverloadProtect(SearchRequestBuilder searchRequestBuilder, int from, int size, QueryBuilder queryBuilder) {
-        searchRequestBuilder.setFrom(from);
-        searchRequestBuilder.setSize(size);
-        if (size == Integer.MAX_VALUE) {
-            Client client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            SearchRequestBuilder countSearchBuilder = client.prepareSearch()
-                    .setIndices(index)
-                    .setTypes(type)
-                    .setFetchSource(false)
-                    .setFrom(MixedConstant.INT_0)
-                    .setSize(MixedConstant.INT_0);    //es自动转换为count模式
-            if (queryBuilder != null) {
-                countSearchBuilder.setQuery(queryBuilder);
-            }
-            SearchResponse searchResponse = countSearchBuilder.get();
-            long actualSize = searchResponse.getHits().getTotalHits();
-            if (actualSize >= Integer.MAX_VALUE) {
-                throw new DaoException("此次查询命中文档数已经大于Integer.MAX_VALUE,拒绝查询,查询条件searchRequestBuilder[" + searchRequestBuilder.toString() + "]");
-            }
-            searchRequestBuilder.setSize(Long.valueOf(actualSize).intValue());
-        }
-    }
-
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
@@ -750,7 +605,6 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         this.entityClass = (Class<T>) p[0];
         ElasticSearchHelper.checkEntityClass(entityClass);
 
-        this.hasEsVersionFiled = ElasticSearchHelper.hasEsVersionField(entityClass);
         this.index = ElasticSearchHelper.getIndexName(entityClass);
         this.type = ElasticSearchHelper.getTypeName(entityClass);
 

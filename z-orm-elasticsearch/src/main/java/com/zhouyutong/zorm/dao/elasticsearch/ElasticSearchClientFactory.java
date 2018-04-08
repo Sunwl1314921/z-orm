@@ -1,14 +1,12 @@
 package com.zhouyutong.zorm.dao.elasticsearch;
 
+import com.google.common.collect.Maps;
 import com.zhouyutong.zorm.constant.SymbolConstant;
 import com.zhouyutong.zorm.exception.DaoException;
-import com.google.common.collect.Maps;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.apache.http.HttpHost;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
 
-import java.net.InetAddress;
 import java.util.HashMap;
 
 /**
@@ -17,14 +15,14 @@ import java.util.HashMap;
  */
 public final class ElasticSearchClientFactory {
     static final ElasticSearchClientFactory INSTANCE = new ElasticSearchClientFactory();
-    private HashMap<ElasticSearchSettings, TransportClient> transportClientMap = Maps.newHashMap();
+    private HashMap<ElasticSearchSettings, RestHighLevelClient> transportClientMap = Maps.newHashMap();
 
     /**
      * 客户端的获取发生在项目运行中
      *
      * @param elasticSearchSettings
      */
-    TransportClient getClient(ElasticSearchSettings elasticSearchSettings) {
+    RestHighLevelClient getClient(ElasticSearchSettings elasticSearchSettings) {
         return transportClientMap.get(elasticSearchSettings);
     }
 
@@ -39,20 +37,14 @@ public final class ElasticSearchClientFactory {
         }
 
         try {
-            Settings settings = Settings.builder()
-                    .put("cluster.name", elasticSearchSettings.getClusterName())
-                    .put("client.transport.sniff", true)
-                    .build();
-
-            System.setProperty("es.set.netty.runtime.available.processors", "false");
-            TransportClient transportClient = new PreBuiltTransportClient(settings);
-
             String[] serverAddrArr = elasticSearchSettings.getServerAddressList().split(SymbolConstant.COMMA);
-            for (String serverAddr : serverAddrArr) {
-                String[] ipAndPort = serverAddr.split(SymbolConstant.COLON);
-                transportClient.addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName(ipAndPort[0]), Integer.parseInt(ipAndPort[1])));
+            HttpHost[] httpHost = new HttpHost[serverAddrArr.length];
+            for (int i = 0; i < serverAddrArr.length; i++) {
+                String[] ipAndPort = serverAddrArr[i].split(SymbolConstant.COLON);
+                httpHost[i] = new HttpHost(ipAndPort[0], Integer.parseInt(ipAndPort[1]), "http");
             }
-            transportClientMap.put(elasticSearchSettings, transportClient);
+            RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(httpHost));
+            transportClientMap.put(elasticSearchSettings, client);
         } catch (Exception e) {
             throw new DaoException("无法生产Client[" + elasticSearchSettings + "]", e);
         }
