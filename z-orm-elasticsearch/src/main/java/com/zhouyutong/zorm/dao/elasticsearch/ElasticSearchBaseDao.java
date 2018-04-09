@@ -87,8 +87,6 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
 
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
             searchSourceBuilder.query(ElasticSearchHelper.criteria2QueryBuilder(criteria))
-                    .fetchSource(false)
-                    .from(MixedConstant.INT_0)
                     .size(MixedConstant.INT_0);
             searchRequest.source(searchSourceBuilder);
 
@@ -118,8 +116,6 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
 
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
             searchSourceBuilder.query(QueryBuilders.wrapperQuery(sql))
-                    .fetchSource(false)
-                    .from(MixedConstant.INT_0)
                     .size(MixedConstant.INT_0);
             searchRequest.source(searchSourceBuilder);
 
@@ -307,9 +303,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             String aggKey = "AggregationBuilder";
             if (param.containsKey(aggKey)) {    //有聚合
                 AggregationBuilder aggregationBuilder = (AggregationBuilder) param.get(aggKey);
-                searchSourceBuilder.from(MixedConstant.INT_0)
-                        .size(MixedConstant.INT_0)
-                        .fetchSource(false);
+                searchSourceBuilder.size(MixedConstant.INT_0);
                 searchSourceBuilder.aggregation(aggregationBuilder);
             } else {    //无聚合
                 int from = MapUtils.getIntValue(param, "from", MixedConstant.INT_0);
