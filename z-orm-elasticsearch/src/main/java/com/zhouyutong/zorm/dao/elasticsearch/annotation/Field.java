@@ -14,11 +14,8 @@ public @interface Field {
     FieldType type() default FieldType.Auto;
 
     //字段是否应当被当成全文来搜索analyzed，或被当成一个准确的值not_analyzed，还是完全不可被搜索no
-    FieldIndex index() default FieldIndex.analyzed;
+    FieldIndex index() default FieldIndex.not_analyzed;
 
     //确定在索引和或搜索时全文字段使用的分析器
     String analyzer() default "";
-
-    //是否持久化
-    boolean isTransient() default true;
 }

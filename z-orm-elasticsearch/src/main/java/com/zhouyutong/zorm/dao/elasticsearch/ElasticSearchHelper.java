@@ -9,7 +9,6 @@ import com.zhouyutong.zorm.entity.IdEntity;
 import com.zhouyutong.zorm.exception.DaoException;
 import com.zhouyutong.zorm.query.Criteria;
 import com.zhouyutong.zorm.query.CriteriaOperators;
-import com.zhouyutong.zorm.query.Update;
 import org.apache.commons.collections.CollectionUtils;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -122,40 +121,6 @@ public final class ElasticSearchHelper {
         SearchHit searchHit = searchHits.getHits()[MixedConstant.INT_0];
         String source = searchHit.getSourceAsString();
         return FastJson.jsonStr2Object(source, entityClass);
-    }
-
-    /**
-     * 插入文档生成持久化的json字符串
-     *
-     * @param entity                       -
-     * @param notNeedTransientPropertyList -
-     * @return
-     */
-    static String getSourceJsonStrWhenInsert(Object entity, List<String> notNeedTransientPropertyList) {
-        String sourceJsonStr;
-        if (notNeedTransientPropertyList.isEmpty()) {
-            sourceJsonStr = FastJson.object2JsonStrUseNullValue(entity);
-        } else {
-            sourceJsonStr = FastJson.object2JsonStrForIgnoreUseNullValue(entity, notNeedTransientPropertyList);
-        }
-        return sourceJsonStr;
-    }
-
-    /**
-     * 修改文档生成持久化的json字符串
-     *
-     * @param update                       -
-     * @param notNeedTransientPropertyList -
-     * @return
-     */
-    static String getSourceJsonStrWhenUpdate(Update update, List<String> notNeedTransientPropertyList) {
-        String sourceJsonStr;
-        if (notNeedTransientPropertyList.isEmpty()) {
-            sourceJsonStr = FastJson.object2JsonStrUseNullValue(update.getSetMap());
-        } else {
-            sourceJsonStr = FastJson.object2JsonStrForIgnoreUseNullValue(update.getSetMap(), notNeedTransientPropertyList);
-        }
-        return sourceJsonStr;
     }
 
     static String getIdSerializable(Serializable id) {

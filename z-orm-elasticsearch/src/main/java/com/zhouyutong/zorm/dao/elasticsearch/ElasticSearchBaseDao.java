@@ -1,6 +1,5 @@
 package com.zhouyutong.zorm.dao.elasticsearch;
 
-import com.google.common.collect.Lists;
 import com.zhouyutong.zorm.annotation.PK;
 import com.zhouyutong.zorm.constant.MixedConstant;
 import com.zhouyutong.zorm.dao.AbstractBaseDao;
@@ -59,7 +58,6 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     private String type;
     private String pkFieldName;
     private Class<T> entityClass;
-    private List<String> notNeedTransientPropertyList = Lists.newArrayList();   //不需要持久化的字段
     private ApplicationContext applicationContext;
 
     @Override
@@ -359,7 +357,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 indexRequest.id(pkValue.toString());
             }
 
-            String sourceJsonStr = ElasticSearchHelper.getSourceJsonStrWhenInsert(entity, notNeedTransientPropertyList);
+            String sourceJsonStr = FastJson.object2JsonStrUseNullValue(entity);
             indexRequest.source(sourceJsonStr, XContentType.JSON);
             IndexResponse indexResponse = client.index(indexRequest);
             /**
@@ -403,7 +401,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         try {
             RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
             UpdateRequest request = new UpdateRequest(index, type, ElasticSearchHelper.getIdSerializable(id));
-            request.doc(ElasticSearchHelper.getSourceJsonStrWhenUpdate(update, notNeedTransientPropertyList), XContentType.JSON);
+            request.doc(FastJson.object2JsonStrUseNullValue(update.getSetMap()), XContentType.JSON);
             request.retryOnConflict(3); //版本冲突重试3次
             request.docAsUpsert(false); //只更新
 
@@ -626,10 +624,6 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             String propertyName = field.getName();
             if (field.getAnnotation(PK.class) != null) {
                 pkFieldName = propertyName;
-            }
-            com.zhouyutong.zorm.dao.elasticsearch.annotation.Field annotation = field.getAnnotation(com.zhouyutong.zorm.dao.elasticsearch.annotation.Field.class);
-            if (!annotation.isTransient()) {
-                notNeedTransientPropertyList.add(propertyName);
             }
         }
     }
