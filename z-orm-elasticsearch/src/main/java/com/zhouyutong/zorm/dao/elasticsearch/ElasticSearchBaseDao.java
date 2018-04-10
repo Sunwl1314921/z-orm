@@ -12,6 +12,7 @@ import com.zhouyutong.zorm.query.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -344,26 +345,17 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             Field pkField = DaoHelper.getPkField(idEntity);
             Object pkValue = DaoHelper.getColumnValue(pkField, idEntity);
             boolean hasSetPkValue = DaoHelper.hasSetPkValue(pkValue);
-
-            IndexRequest indexRequest = new IndexRequest(index, type);
-            indexRequest.create(true);
-            if (hasSetPkValue) {
-                indexRequest.id(pkValue.toString());
+            //使用es必须使用外部id
+            if (!hasSetPkValue) {
+                throw new DaoMethodParameterException("Param entity must be set id");
             }
 
+            IndexRequest indexRequest = new IndexRequest(index, type);
+            indexRequest.id(pkValue.toString());
+            indexRequest.opType(DocWriteRequest.OpType.CREATE);
             String sourceJsonStr = FastJson.object2JsonStrUseNullValue(entity);
             indexRequest.source(sourceJsonStr, XContentType.JSON);
             IndexResponse indexResponse = client.index(indexRequest);
-            /**
-             * 插入完成后把es自动生成的id设置回entity
-             */
-            if (!hasSetPkValue) {
-                String idAfterInsert = indexResponse.getId();
-                DaoHelper.setPkValue(pkField, idEntity, idAfterInsert);
-            }
-            /**
-             * 插入完成后把es的version设置到entity
-             */
             long version = indexResponse.getVersion();
             return new Long(version).intValue();         //新创建的文档版本都从1开始
         } catch (Exception e) {

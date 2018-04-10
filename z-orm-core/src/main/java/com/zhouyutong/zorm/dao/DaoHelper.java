@@ -133,21 +133,16 @@ public class DaoHelper {
             throw new DaoMethodParameterException("Param id must be not null");
         }
 
-        if (id instanceof Long) {
-            if (((Long) id).longValue() < 0) {
-                throw new DaoMethodParameterException("Param id must be >= 0");
-            }
-            return;
-        } else if (id instanceof String) {
-            if (StringUtils.isBlank((String) id)) {
-                throw new DaoMethodParameterException("Param id must be not empty");
-            }
-            return;
-        } else if (id instanceof Integer) {
-            if (((Integer) id).intValue() < 0) {
-                throw new DaoMethodParameterException("Param id must be >= 0");
-            }
-            return;
+        if (id instanceof Long && ((Long) id).longValue() < 0) {
+            throw new DaoMethodParameterException("Param id must be >= 0");
+        }
+
+        if (id instanceof String && StringUtils.isBlank((String) id)) {
+            throw new DaoMethodParameterException("Param id must be not empty");
+        }
+
+        if (id instanceof Integer && ((Integer) id).intValue() < 0) {
+            throw new DaoMethodParameterException("Param id must be >= 0");
         }
 
         throw new DaoMethodParameterException("Param id's type must be Long or String or Integer");
@@ -275,28 +270,6 @@ public class DaoHelper {
     public static Serializable getPkValue(IdEntity idEntity) {
         Field pkField = getPkField(idEntity);
         return (Serializable) getColumnValue(pkField, idEntity);
-    }
-
-    /**
-     * 根据field得到对应值
-     *
-     * @param field - 字段对象
-     * @param bean  - 对应的bean
-     * @return - 返回filed值
-     */
-    public static void setPkValue(Field field, Object bean, String id) {
-        field.setAccessible(true);
-        try {
-            if (field.getType().equals(String.class)) {
-                field.set(bean, id);
-            } else if (field.getType().equals(Long.class)) {
-                field.set(bean, Long.parseLong(id));
-            } else if (field.getType().equals(Integer.class)) {
-                field.set(bean, Integer.parseInt(id));
-            }
-        } catch (Exception e) {
-            throw new DaoException("无法设置entity[" + bean.getClass().getName() + "]的id,值[" + id + "]", e);
-        }
     }
 
     /**
