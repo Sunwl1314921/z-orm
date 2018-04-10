@@ -1,5 +1,6 @@
 package com.zhouyutong.zorm.dao.jdbc;
 
+import com.google.common.collect.Lists;
 import com.zhouyutong.zorm.constant.MixedConstant;
 import com.zhouyutong.zorm.dao.AbstractBaseDao;
 import com.zhouyutong.zorm.dao.DaoHelper;
@@ -9,7 +10,6 @@ import com.zhouyutong.zorm.entity.IdEntity;
 import com.zhouyutong.zorm.exception.DaoException;
 import com.zhouyutong.zorm.exception.DaoExceptionTranslator;
 import com.zhouyutong.zorm.exception.UniqueConstraintException;
-import com.google.common.collect.Lists;
 import com.zhouyutong.zorm.query.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;

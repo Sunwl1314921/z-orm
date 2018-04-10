@@ -17,7 +17,6 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 
-import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
@@ -121,14 +120,6 @@ public final class ElasticSearchHelper {
         SearchHit searchHit = searchHits.getHits()[MixedConstant.INT_0];
         String source = searchHit.getSourceAsString();
         return FastJson.jsonStr2Object(source, entityClass);
-    }
-
-    static String getIdSerializable(Serializable id) {
-        if (id instanceof Long) {
-            return Long.toString((Long) id);
-        } else {
-            return (String) id;
-        }
     }
 
     static DaoException translateElasticSearchException(Exception e) {

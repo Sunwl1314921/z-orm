@@ -135,7 +135,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
 
         try {
             RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            GetRequest getRequest = new GetRequest(index, type, ElasticSearchHelper.getIdSerializable(id));
+            GetRequest getRequest = new GetRequest(index, type, id.toString());
             GetResponse getResponse = client.get(getRequest);
 
             if (!getResponse.isExists()) {
@@ -359,7 +359,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
              */
             if (!hasSetPkValue) {
                 String idAfterInsert = indexResponse.getId();
-                DaoHelper.setColumnValue(pkField, idEntity, idAfterInsert);
+                DaoHelper.setPkValue(pkField, idEntity, idAfterInsert);
             }
             /**
              * 插入完成后把es的version设置到entity
@@ -394,7 +394,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
 
         try {
             RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            UpdateRequest request = new UpdateRequest(index, type, ElasticSearchHelper.getIdSerializable(id));
+            UpdateRequest request = new UpdateRequest(index, type, id.toString());
             request.doc(FastJson.object2JsonStrUseNullValue(update.getSetMap()), XContentType.JSON);
             request.retryOnConflict(3); //版本冲突重试3次
             request.docAsUpsert(false); //只更新
@@ -440,7 +440,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
 
         try {
             RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
-            DeleteRequest deleteRequest = new DeleteRequest(index, type, ElasticSearchHelper.getIdSerializable(id));
+            DeleteRequest deleteRequest = new DeleteRequest(index, type, id.toString());
             DeleteResponse deleteResponse = client.delete(deleteRequest);
 
             int op = deleteResponse.getResult().getOp();
