@@ -92,9 +92,12 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             searchRequest.source(searchSourceBuilder);
 
             if (log.isDebugEnabled()) {
-                log.debug("countByCriteria searchRequestBuilder:" + searchSourceBuilder.toString());
+                log.debug("=========countByCriteria request:" + searchRequest.toString());
             }
             SearchResponse searchResponse = client.search(searchRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========countByCriteria response:" + searchResponse.toString());
+            }
             return searchResponse.getHits().getTotalHits();
         } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
@@ -121,9 +124,12 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             searchRequest.source(searchSourceBuilder);
 
             if (log.isDebugEnabled()) {
-                log.debug("countBySql searchRequestBuilder:" + searchSourceBuilder.toString());
+                log.debug("=========countBySql request:" + searchRequest.toString());
             }
             SearchResponse searchResponse = client.search(searchRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========countBySql response:" + searchResponse.toString());
+            }
             return searchResponse.getHits().getTotalHits();
         } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
@@ -170,9 +176,12 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             searchRequest.source(searchSourceBuilder);
 
             if (log.isDebugEnabled()) {
-                log.debug("findOneByQuery searchRequestBuilder:" + searchSourceBuilder.toString());
+                log.debug("=========findOneByQuery request:" + searchRequest.toString());
             }
             SearchResponse searchResponse = client.search(searchRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========findOneByQuery response:" + searchResponse.toString());
+            }
             return ElasticSearchHelper.getEntity(searchResponse, entityClass);
         } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
@@ -196,9 +205,12 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             searchRequest.source(searchSourceBuilder);
 
             if (log.isDebugEnabled()) {
-                log.debug("findOneBySql searchRequestBuilder:" + searchSourceBuilder.toString());
+                log.debug("=========findOneBySql request:" + searchRequest.toString());
             }
             SearchResponse searchResponse = client.search(searchRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========findOneBySql response:" + searchResponse.toString());
+            }
             return ElasticSearchHelper.getEntity(searchResponse, entityClass);
         } catch (Exception e) {
             throw DaoExceptionTranslator.translate(e);
@@ -222,9 +234,12 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             searchRequest.source(searchSourceBuilder);
 
             if (log.isDebugEnabled()) {
-                log.debug("findListByIds searchRequestBuilder:" + searchSourceBuilder.toString());
+                log.debug("=========findListByIds request:" + searchRequest.toString());
             }
             SearchResponse searchResponse = client.search(searchRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========findListByIds response:" + searchResponse.toString());
+            }
             return ElasticSearchHelper.getEntityList(searchResponse, entityClass);
         } catch (Exception e) {
             throw ElasticSearchHelper.translateElasticSearchException(e);
@@ -265,9 +280,12 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             searchRequest.source(searchSourceBuilder);
 
             if (log.isDebugEnabled()) {
-                log.debug("findListByQuery searchRequestBuilder:" + searchSourceBuilder.toString());
+                log.debug("=========findListByQuery request:" + searchRequest.toString());
             }
             SearchResponse searchResponse = client.search(searchRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========findListByQuery response:" + searchResponse.toString());
+            }
             return ElasticSearchHelper.getEntityList(searchResponse, entityClass);
         } catch (Exception e) {
             throw ElasticSearchHelper.translateElasticSearchException(e);
@@ -318,10 +336,14 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             }
 
             searchRequest.source(searchSourceBuilder);
+
             if (log.isDebugEnabled()) {
-                log.debug("findListBySql searchRequestBuilder:" + searchSourceBuilder.toString());
+                log.debug("=========findListBySql request:" + searchRequest.toString());
             }
             SearchResponse searchResponse = client.search(searchRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========findListBySql response:" + searchResponse.toString());
+            }
 
             if (param.containsKey(aggKey)) {    //有聚合
                 param.put("AggregationResult", searchResponse.getAggregations());
@@ -355,7 +377,16 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             indexRequest.opType(DocWriteRequest.OpType.CREATE);
             String sourceJsonStr = FastJson.object2JsonStrUseNullValue(entity);
             indexRequest.source(sourceJsonStr, XContentType.JSON);
+
+
+            if (log.isDebugEnabled()) {
+                log.debug("=========insert request:" + indexRequest.toString());
+            }
             IndexResponse indexResponse = client.index(indexRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========insert response:" + indexResponse.toString());
+            }
+
             long version = indexResponse.getVersion();
             return new Long(version).intValue();         //新创建的文档版本都从1开始
         } catch (Exception e) {
@@ -391,7 +422,15 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             request.retryOnConflict(3); //版本冲突重试3次
             request.docAsUpsert(false); //只更新
 
+
+            if (log.isDebugEnabled()) {
+                log.debug("=========updateById request:" + request.toString());
+            }
             UpdateResponse updateResponse = client.update(request);
+            if (log.isDebugEnabled()) {
+                log.debug("=========updateById response:" + updateResponse.toString());
+            }
+
             int op = updateResponse.getResult().getOp();
             if (op == DocWriteResponse.Result.NOOP.getOp()) {   //值没有变化,_version不会增加
                 return MixedConstant.INT_0;
@@ -433,7 +472,14 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         try {
             RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
             DeleteRequest deleteRequest = new DeleteRequest(index, type, id.toString());
+
+            if (log.isDebugEnabled()) {
+                log.debug("=========deleteById request:" + deleteRequest.toString());
+            }
             DeleteResponse deleteResponse = client.delete(deleteRequest);
+            if (log.isDebugEnabled()) {
+                log.debug("=========deleteById response:" + deleteResponse.toString());
+            }
 
             int op = deleteResponse.getResult().getOp();
             if (op == DocWriteResponse.Result.NOT_FOUND.getOp()) {

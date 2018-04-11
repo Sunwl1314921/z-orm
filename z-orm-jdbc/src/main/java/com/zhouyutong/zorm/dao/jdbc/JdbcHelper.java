@@ -406,8 +406,8 @@ public final class JdbcHelper {
 
         StringBuilder sb = new StringBuilder();
         int length = sql.length();
-        int questionIndex = MixedConstant.INT_0;
-        for (int i = MixedConstant.INT_0; i < length; i++) {
+        int questionIndex = 0;
+        for (int i = 0; i < length; i++) {
             char c = sql.charAt(i);
             if (c == '?') {
                 Object value = valueList.get(questionIndex);

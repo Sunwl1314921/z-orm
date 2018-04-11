@@ -44,7 +44,6 @@ import java.util.Map;
  */
 @Slf4j
 public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements ApplicationContextAware {
-
     private Class<T> entityClass;
     private EntityMapper<T> entityMapper;
     private JdbcSettings jdbcSettings;
@@ -181,7 +180,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
             }
 
             List<Map<String, Object>> list = ((JdbcTemplate) router.readRoute()).queryForList(sql.toString(), valueList.toArray());
-            if (list == null || list.isEmpty()) {
+            if (CollectionUtils.isEmpty(list)) {
                 return null;
             }
             List<T> entityList = Lists.newArrayList();
@@ -222,7 +221,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 list = ((JdbcTemplate) router.readRoute()).queryForList(sql, valueList.toArray());
             }
 
-            if (list == null || list.isEmpty()) {
+            if (CollectionUtils.isEmpty(list)) {
                 return null;
             }
             List<T> entityList = Lists.newArrayList();
