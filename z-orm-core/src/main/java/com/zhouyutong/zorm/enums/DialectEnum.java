@@ -1,4 +1,4 @@
-package com.zhouyutong.zorm.dao.jdbc.enums;
+package com.zhouyutong.zorm.enums;
 
 /**
  * DB名称枚举
@@ -8,7 +8,8 @@ package com.zhouyutong.zorm.dao.jdbc.enums;
 public enum DialectEnum {
     MYSQL("mysql"),
     ORACLE("oracle"),
-    ELASTICSEARCH("elasticsearch");
+    ELASTICSEARCH("elasticsearch"),
+    CASSANDRA("cassandra");
 
     private final String value;
 

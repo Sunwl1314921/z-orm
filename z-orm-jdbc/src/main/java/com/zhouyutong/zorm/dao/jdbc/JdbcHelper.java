@@ -1,19 +1,18 @@
 package com.zhouyutong.zorm.dao.jdbc;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.zhouyutong.zorm.annotation.PK;
 import com.zhouyutong.zorm.constant.MixedConstant;
 import com.zhouyutong.zorm.constant.SymbolConstant;
 import com.zhouyutong.zorm.dao.DaoHelper;
 import com.zhouyutong.zorm.dao.jdbc.annotation.Column;
 import com.zhouyutong.zorm.dao.jdbc.annotation.Table;
-import com.zhouyutong.zorm.dao.jdbc.enums.DialectEnum;
 import com.zhouyutong.zorm.entity.IdEntity;
-import com.zhouyutong.zorm.exception.DaoException;
+import com.zhouyutong.zorm.enums.DialectEnum;
 import com.zhouyutong.zorm.query.*;
 import com.zhouyutong.zorm.utils.BeanUtils;
 import com.zhouyutong.zorm.utils.StrUtils;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.jdbc.support.JdbcUtils;
@@ -176,7 +175,7 @@ public final class JdbcHelper {
             }
             return BeanUtils.mapToBean(propertyMap, entityClass);
         } catch (Exception e) {
-            throw new DaoException("map2Entity无法将数据库中行记录[" + map + "]转换成Entity对象[" + entityClass.getSimpleName() + "]", e);
+            throw new RuntimeException("map2Entity无法将数据库中行记录[" + map + "]转换成Entity对象[" + entityClass.getSimpleName() + "]", e);
         }
     }
 
@@ -235,7 +234,7 @@ public final class JdbcHelper {
             rs.next();
             return rs.getLong(MixedConstant.INT_1);
         } catch (SQLException e) {
-            throw new DaoException("无法获取oracle的sequence:" + sequence);
+            throw new RuntimeException("无法获取oracle的sequence:" + sequence);
         } finally {
             JdbcUtils.closeResultSet(rs);
             JdbcUtils.closeStatement(pstmt);
@@ -270,7 +269,7 @@ public final class JdbcHelper {
                     valueList.add(oracleId);
                     DaoHelper.setColumnValue(pkField, idEntity, oracleId);
                 } else {
-                    throw new DaoException("连接ORACLE,实体Table注解必须设置sequence");
+                    throw new RuntimeException("连接ORACLE,实体Table注解必须设置sequence");
                 }
             }
         }
@@ -332,22 +331,22 @@ public final class JdbcHelper {
      */
     public static void checkEntityClass(Class entityClass) {
         if (entityClass == null) {
-            throw new DaoException("can not get the entity's Generic Type");
+            throw new RuntimeException("can not get the entity's Generic Type");
         }
 
         String entityClassName = entityClass.getName();
         if (!IdEntity.class.isAssignableFrom(entityClass)) {
-            throw new DaoException("entity[" + entityClassName + "] must implements IdEntity");
+            throw new RuntimeException("entity[" + entityClassName + "] must implements IdEntity");
         }
 
         Table tableAnnotation = (Table) entityClass.getAnnotation(Table.class);
         if (tableAnnotation == null) {
-            throw new DaoException("entity[" + entityClassName + "] must have Table annotation");
+            throw new RuntimeException("entity[" + entityClassName + "] must have Table annotation");
         }
 
         Field[] fields = entityClass.getDeclaredFields();
         if (fields == null || fields.length == 0) {
-            throw new DaoException("entity[" + entityClassName + "] must have least one Field");
+            throw new RuntimeException("entity[" + entityClassName + "] must have least one Field");
         }
 
         int pkAnnotationCount = 0;
@@ -359,7 +358,7 @@ public final class JdbcHelper {
             }
             Column columnAnnotation = field.getAnnotation(Column.class);
             if (columnAnnotation == null) {
-                throw new DaoException("entity[" + entityClassName + "]的字段[" + field.getName() + "]必须有Column注解");
+                throw new RuntimeException("entity[" + entityClassName + "]的字段[" + field.getName() + "]必须有Column注解");
             }
 
             PK pkAnnotation = field.getAnnotation(PK.class);
@@ -369,10 +368,10 @@ public final class JdbcHelper {
             }
         }
         if (pkAnnotationCount != 1) {
-            throw new DaoException("entity[" + entityClassName + "] 有且只能有一个PK注解的字段");
+            throw new RuntimeException("entity[" + entityClassName + "] 有且只能有一个PK注解的字段");
         }
         if (!supportPKFieldType.contains(pkFieldTypeName)) {
-            throw new DaoException("entity[" + entityClassName + "]的pk字段类型只能是Long,Integer,String其中之一");
+            throw new RuntimeException("entity[" + entityClassName + "]的pk字段类型只能是Long,Integer,String其中之一");
         }
     }
 

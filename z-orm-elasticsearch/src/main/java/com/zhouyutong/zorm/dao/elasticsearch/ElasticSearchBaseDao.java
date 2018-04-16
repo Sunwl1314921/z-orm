@@ -1,14 +1,14 @@
 package com.zhouyutong.zorm.dao.elasticsearch;
 
+import com.zhouyutong.zapplication.serialization.json.FastJson;
 import com.zhouyutong.zorm.annotation.PK;
 import com.zhouyutong.zorm.constant.MixedConstant;
 import com.zhouyutong.zorm.dao.AbstractBaseDao;
 import com.zhouyutong.zorm.dao.DaoHelper;
 import com.zhouyutong.zorm.entity.IdEntity;
-import com.zhouyutong.zorm.exception.DaoException;
-import com.zhouyutong.zorm.exception.DaoExceptionTranslator;
-import com.zhouyutong.zorm.exception.DaoMethodParameterException;
+import com.zhouyutong.zorm.enums.DialectEnum;
 import com.zhouyutong.zorm.query.*;
+import com.zhouyutong.zorm.utils.ExceptionTranslator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
@@ -67,19 +67,19 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public boolean exists(Serializable id) throws DaoException {
+    public boolean exists(Serializable id) {
         DaoHelper.checkArgumentId(id);
         return this.exists(Criteria.where(pkFieldName, id));
     }
 
     @Override
-    public boolean exists(Criteria criteria) throws DaoException {
+    public boolean exists(Criteria criteria) {
         DaoHelper.checkArgumentCriteria(criteria);
         return null != this.findOne(Arrays.asList(pkFieldName), criteria);
     }
 
     @Override
-    public long countByCriteria(Criteria criteria) throws DaoException {
+    public long countByCriteria(Criteria criteria) {
         try {
             RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
             SearchRequest searchRequest = new SearchRequest();
@@ -99,18 +99,18 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 log.debug("=========countByCriteria response:" + searchResponse.toString());
             }
             return searchResponse.getHits().getTotalHits();
-        } catch (Exception e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public long countAll() throws DaoException {
+    public long countAll() {
         return countByCriteria(null);
     }
 
     @Override
-    protected long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected long countBySql(String sql, LinkedHashMap<String, Object> param) {
         DaoHelper.checkArgument(sql);
         try {
             RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
@@ -131,13 +131,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 log.debug("=========countBySql response:" + searchResponse.toString());
             }
             return searchResponse.getHits().getTotalHits();
-        } catch (Exception e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public T findOneById(Serializable id) throws DaoException {
+    public T findOneById(Serializable id) {
         DaoHelper.checkArgumentId(id);
 
         try {
@@ -150,13 +150,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             }
             String source = getResponse.getSourceAsString();
             return FastJson.jsonStr2Object(source, entityClass);
-        } catch (Exception e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public T findOneByQuery(Query query) throws DaoException {
+    public T findOneByQuery(Query query) {
         DaoHelper.checkArgumentQuery(query);
 
         try {
@@ -183,13 +183,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 log.debug("=========findOneByQuery response:" + searchResponse.toString());
             }
             return ElasticSearchHelper.getEntity(searchResponse, entityClass);
-        } catch (Exception e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    protected T findOneBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected T findOneBySql(String sql, LinkedHashMap<String, Object> param) {
         DaoHelper.checkArgument(sql);
 
         try {
@@ -212,13 +212,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 log.debug("=========findOneBySql response:" + searchResponse.toString());
             }
             return ElasticSearchHelper.getEntity(searchResponse, entityClass);
-        } catch (Exception e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public List<T> findListByIds(List<Serializable> ids) throws DaoException {
+    public List<T> findListByIds(List<Serializable> ids) {
         DaoHelper.checkArgumentIds(ids);
         try {
             RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
@@ -241,16 +241,16 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 log.debug("=========findListByIds response:" + searchResponse.toString());
             }
             return ElasticSearchHelper.getEntityList(searchResponse, entityClass);
-        } catch (Exception e) {
-            throw ElasticSearchHelper.translateElasticSearchException(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public List<T> findListByQuery(Query query) throws DaoException {
+    public List<T> findListByQuery(Query query) {
         DaoHelper.checkArgumentQuery(query);
         if (CollectionUtils.isNotEmpty(query.getGroupBys())) { //聚合使用findListBySql
-            throw new DaoMethodParameterException("findListByQuery not support groupBy Search");
+            throw new IllegalArgumentException("findListByQuery not support groupBy Search");
         }
 
         try {
@@ -287,13 +287,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 log.debug("=========findListByQuery response:" + searchResponse.toString());
             }
             return ElasticSearchHelper.getEntityList(searchResponse, entityClass);
-        } catch (Exception e) {
-            throw ElasticSearchHelper.translateElasticSearchException(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public List<T> findListByQuery(Query query, Pageable pageable) throws DaoException {
+    public List<T> findListByQuery(Query query, Pageable pageable) {
         DaoHelper.checkArgumentQuery(query);
         DaoHelper.checkArgumentPageable(pageable);
 
@@ -304,10 +304,10 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    protected List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) {
         DaoHelper.checkArgument(sql);
         if (param == null) {
-            throw new DaoMethodParameterException("Param param must be not null");
+            throw new IllegalArgumentException("Param param must be not null");
         }
 
         try {
@@ -351,13 +351,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             } else {   //无聚合
                 return ElasticSearchHelper.getEntityList(searchResponse, entityClass);
             }
-        } catch (Exception e) {
-            throw ElasticSearchHelper.translateElasticSearchException(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public int insert(T entity) throws DaoException {
+    public int insert(T entity) {
         DaoHelper.checkArgumentEntity(entity);
 
         try {
@@ -369,7 +369,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
             boolean hasSetPkValue = DaoHelper.hasSetPkValue(pkValue);
             //使用es必须使用外部id
             if (!hasSetPkValue) {
-                throw new DaoMethodParameterException("Param entity must be set id");
+                throw new IllegalArgumentException("Param entity must be set id");
             }
 
             IndexRequest indexRequest = new IndexRequest(index, type);
@@ -389,20 +389,20 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
 
             long version = indexResponse.getVersion();
             return new Long(version).intValue();         //新创建的文档版本都从1开始
-        } catch (Exception e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public int update(T entity) throws DaoException {
+    public int update(T entity) {
         DaoHelper.checkArgumentEntity(entity);
 
         return this.update(entity, null);
     }
 
     @Override
-    public int update(T entity, List<String> propetyList) throws DaoException {
+    public int update(T entity, List<String> propetyList) {
         DaoHelper.checkArgumentEntity(entity);
 
         IdEntity idEntity = (IdEntity) entity;
@@ -411,7 +411,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public int updateById(Serializable id, Update update) throws DaoException {
+    public int updateById(Serializable id, Update update) {
         DaoHelper.checkArgumentId(id);
         DaoHelper.checkArgumentUpdate(update);
 
@@ -436,13 +436,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 return MixedConstant.INT_0;
             }
             return MixedConstant.INT_1;
-        } catch (Exception e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public int updateByIds(List<Serializable> ids, Update update) throws DaoException {
+    public int updateByIds(List<Serializable> ids, Update update) {
         DaoHelper.checkArgumentIds(ids);
         DaoHelper.checkArgumentUpdate(update);
 
@@ -456,17 +456,17 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public int updateByCriteria(Criteria criteria, Update update) throws DaoException {
-        throw new DaoException("ElasticSearchBaseDao do not support The Method");
+    public int updateByCriteria(Criteria criteria, Update update) {
+        throw new RuntimeException("ElasticSearchBaseDao do not support The Method");
     }
 
     @Override
-    protected int updateBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
-        throw new DaoException("ElasticSearchBaseDao do not support The Method");
+    protected int updateBySql(String sql, LinkedHashMap<String, Object> param) {
+        throw new RuntimeException("ElasticSearchBaseDao do not support The Method");
     }
 
     @Override
-    public int deleteById(Serializable id) throws DaoException {
+    public int deleteById(Serializable id) {
         DaoHelper.checkArgumentId(id);
 
         try {
@@ -486,13 +486,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
                 return MixedConstant.INT_0;
             }
             return MixedConstant.INT_1;
-        } catch (Exception e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
     }
 
     @Override
-    public T findOne(List<String> fields, Criteria criteria) throws DaoException {
+    public T findOne(List<String> fields, Criteria criteria) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentCriteria(criteria);
 
@@ -502,7 +502,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public T findOne(Criteria criteria) throws DaoException {
+    public T findOne(Criteria criteria) {
         DaoHelper.checkArgumentCriteria(criteria);
 
         Query query = Query.query(criteria);
@@ -510,7 +510,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findList(List<String> fields, Criteria criteria) throws DaoException {
+    public List<T> findList(List<String> fields, Criteria criteria) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentCriteria(criteria);
 
@@ -520,7 +520,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys) throws DaoException {
+    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentOrderBys(orderBys);
@@ -532,7 +532,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys, Pageable pageable) throws DaoException {
+    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys, Pageable pageable) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentOrderBys(orderBys);
@@ -545,7 +545,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findList(Criteria criteria) throws DaoException {
+    public List<T> findList(Criteria criteria) {
         DaoHelper.checkArgumentCriteria(criteria);
 
         Query query = Query.query(criteria);
@@ -553,7 +553,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findList(Criteria criteria, List<OrderBy> orderBys) throws DaoException {
+    public List<T> findList(Criteria criteria, List<OrderBy> orderBys) {
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentOrderBys(orderBys);
 
@@ -563,7 +563,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findList(Criteria criteria, List<OrderBy> orderBys, Pageable pageable) throws DaoException {
+    public List<T> findList(Criteria criteria, List<OrderBy> orderBys, Pageable pageable) {
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentOrderBys(orderBys);
         DaoHelper.checkArgumentPageable(pageable);
@@ -574,13 +574,13 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findAllList() throws DaoException {
+    public List<T> findAllList() {
         Query query = Query.query();
         return this.findListByQuery(query);
     }
 
     @Override
-    public List<T> findAllList(List<String> fields) throws DaoException {
+    public List<T> findAllList(List<String> fields) {
         DaoHelper.checkArgumentFields(fields);
 
         Query query = Query.query();
@@ -589,7 +589,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys) throws DaoException {
+    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentOrderBys(orderBys);
 
@@ -600,7 +600,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys, Pageable pageable) throws DaoException {
+    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys, Pageable pageable) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentOrderBys(orderBys);
         DaoHelper.checkArgumentPageable(pageable);
@@ -612,7 +612,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
-    public List<T> findAllList(List<OrderBy> orderBys, Pageable pageable) throws DaoException {
+    public List<T> findAllList(List<OrderBy> orderBys, Pageable pageable) {
         DaoHelper.checkArgumentOrderBys(orderBys);
         DaoHelper.checkArgumentPageable(pageable);
 
@@ -642,7 +642,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         String settingsName = DaoHelper.getSettingsName(daoClass);
         this.elasticSearchSettings = (ElasticSearchSettings) this.applicationContext.getBean(settingsName);
         if (this.elasticSearchSettings == null) {
-            throw new DaoException("注解Dao的属性settingBeanName[" + settingsName + "]必须对应一个有效的ElasticSearchSettings bean");
+            throw new RuntimeException("注解Dao的属性settingBeanName[" + settingsName + "]必须对应一个有效的ElasticSearchSettings bean");
         }
 
         ElasticSearchClientFactory.INSTANCE.setClient(elasticSearchSettings);

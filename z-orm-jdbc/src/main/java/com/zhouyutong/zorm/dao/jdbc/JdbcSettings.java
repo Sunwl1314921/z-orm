@@ -1,7 +1,7 @@
 package com.zhouyutong.zorm.dao.jdbc;
 
 import com.zhouyutong.zorm.dao.DaoSettings;
-import com.zhouyutong.zorm.dao.jdbc.enums.DialectEnum;
+import com.zhouyutong.zorm.enums.DialectEnum;
 import lombok.Data;
 
 import javax.sql.DataSource;

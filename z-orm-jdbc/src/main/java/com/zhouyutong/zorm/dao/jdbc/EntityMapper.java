@@ -3,7 +3,6 @@ package com.zhouyutong.zorm.dao.jdbc;
 import com.zhouyutong.zorm.annotation.PK;
 import com.zhouyutong.zorm.dao.DaoHelper;
 import com.zhouyutong.zorm.dao.jdbc.annotation.Column;
-import com.zhouyutong.zorm.exception.DaoException;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import lombok.Getter;
@@ -55,7 +54,7 @@ public final class EntityMapper<T> {
                 columnToPropertyMapper.put(columnName, propertyName);
             }
         } catch (Exception e) {
-            throw new DaoException("无法创建Entity[" + getEntityName() + "]对应的EntityMapper", e);
+            throw new RuntimeException("无法创建Entity[" + getEntityName() + "]对应的EntityMapper", e);
         }
     }
 }

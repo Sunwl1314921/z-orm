@@ -1,10 +1,9 @@
 package com.zhouyutong.zorm.dao.jdbc;
 
+import com.google.common.collect.Maps;
 import com.zhouyutong.zorm.dao.DaoSettings;
 import com.zhouyutong.zorm.dao.DatabaseRouter;
 import com.zhouyutong.zorm.dao.DatabaseRouterFactory;
-import com.zhouyutong.zorm.exception.DaoException;
-import com.google.common.collect.Maps;
 
 import java.util.HashMap;
 
@@ -40,7 +39,7 @@ public class JdbcDatabaseRouterFactory implements DatabaseRouterFactory {
         try {
             jdbcTemplateRouterMap.put(jdbcSettings, new JdbcDatabaseRouter(jdbcSettings));
         } catch (RuntimeException e) {
-            throw new DaoException("无法生产JdbcTemplateRouter[" + jdbcSettings + "]", e);
+            throw new RuntimeException("无法生产JdbcTemplateRouter[" + jdbcSettings + "]", e);
         }
     }
 }

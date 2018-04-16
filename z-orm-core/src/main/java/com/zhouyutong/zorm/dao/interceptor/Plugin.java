@@ -1,8 +1,5 @@
 package com.zhouyutong.zorm.dao.interceptor;
 
-
-import com.zhouyutong.zorm.exception.DaoException;
-
 import java.lang.reflect.*;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,7 +58,7 @@ public class Plugin implements InvocationHandler {
     private static Map<Class<?>, Set<Method>> getSignatureMap(Interceptor interceptor) {
         Intercepts interceptsAnnotation = interceptor.getClass().getAnnotation(Intercepts.class);
         if (interceptsAnnotation == null) { // issue #251
-            throw new DaoException("No @Intercepts annotation was found in interceptor " + interceptor.getClass().getName());
+            throw new RuntimeException("No @Intercepts annotation was found in interceptor " + interceptor.getClass().getName());
         }
         Signature[] sigs = interceptsAnnotation.value();
         Map<Class<?>, Set<Method>> signatureMap = new HashMap<Class<?>, Set<Method>>();
@@ -75,7 +72,7 @@ public class Plugin implements InvocationHandler {
                 Method method = sig.type().getMethod(sig.method(), sig.args());
                 methods.add(method);
             } catch (NoSuchMethodException e) {
-                throw new DaoException("Could not find method on " + sig.type() + " named " + sig.method() + ". Cause: " + e, e);
+                throw new RuntimeException("Could not find method on " + sig.type() + " named " + sig.method() + ". Cause: " + e, e);
             }
         }
         return signatureMap;

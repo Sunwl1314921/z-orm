@@ -1,6 +1,6 @@
 package com.zhouyutong.zorm.dao.jdbc.transaction;
 
-import com.zhouyutong.zorm.exception.DaoExceptionTranslator;
+import com.zhouyutong.zorm.utils.ExceptionTranslator;
 import lombok.Setter;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionStatus;
@@ -49,7 +49,7 @@ public class TransactionManager {
             txManager.commit(ts);
         } catch (Throwable ex) {
             txManager.rollback(ts);
-            throw DaoExceptionTranslator.translate(ex);
+            throw ExceptionTranslator.translate(ex);
         } finally {
             if (!isNested) {//嵌套事物由外层标记leave
                 TransactionContext.leaveTransaction();

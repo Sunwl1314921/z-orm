@@ -4,8 +4,6 @@ import com.google.common.collect.Lists;
 import com.zhouyutong.zorm.annotation.Dao;
 import com.zhouyutong.zorm.annotation.PK;
 import com.zhouyutong.zorm.entity.IdEntity;
-import com.zhouyutong.zorm.exception.DaoException;
-import com.zhouyutong.zorm.exception.DaoMethodParameterException;
 import com.zhouyutong.zorm.query.*;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -59,7 +57,7 @@ public class DaoHelper {
         try {
             return field.get(bean);
         } catch (Exception e) {
-            throw new DaoException("无法获取entity[" + bean.getClass().getName() + "]的属性[" + field.getName() + "]的值", e);
+            throw new RuntimeException("无法获取entity[" + bean.getClass().getName() + "]的属性[" + field.getName() + "]的值", e);
         }
     }
 
@@ -76,7 +74,7 @@ public class DaoHelper {
             field.setAccessible(true);
             return field.get(bean);
         } catch (Exception e) {
-            throw new DaoException("无法获取entity[" + bean.getClass().getName() + "]的属性[" + fieldName + "]的值", e);
+            throw new RuntimeException("无法获取entity[" + bean.getClass().getName() + "]的属性[" + fieldName + "]的值", e);
         }
     }
 
@@ -92,7 +90,7 @@ public class DaoHelper {
         try {
             field.set(bean, v);
         } catch (Exception e) {
-            throw new DaoException("无法设置entity[" + bean.getClass().getName() + "]的属性[" + field.getName() + "],值[" + v + "]", e);
+            throw new RuntimeException("无法设置entity[" + bean.getClass().getName() + "]的属性[" + field.getName() + "],值[" + v + "]", e);
         }
     }
 
@@ -112,7 +110,7 @@ public class DaoHelper {
      */
     public static void checkArgumentCriteria(Criteria criteria) {
         if (criteria == null) {
-            throw new DaoMethodParameterException("Param criteria must be not null");
+            throw new IllegalArgumentException("Param criteria must be not null");
         }
     }
 
@@ -121,7 +119,7 @@ public class DaoHelper {
      */
     public static void checkArgumentQuery(Query query) {
         if (query == null) {
-            throw new DaoMethodParameterException("Param query must be not null");
+            throw new IllegalArgumentException("Param query must be not null");
         }
     }
 
@@ -130,22 +128,22 @@ public class DaoHelper {
      */
     public static void checkArgumentId(Serializable id) {
         if (id == null) {
-            throw new DaoMethodParameterException("Param id must be not null");
+            throw new IllegalArgumentException("Param id must be not null");
         }
 
         if (id instanceof Long && ((Long) id).longValue() < 0) {
-            throw new DaoMethodParameterException("Param id must be >= 0");
+            throw new IllegalArgumentException("Param id must be >= 0");
         }
 
         if (id instanceof String && StringUtils.isBlank((String) id)) {
-            throw new DaoMethodParameterException("Param id must be not empty");
+            throw new IllegalArgumentException("Param id must be not empty");
         }
 
         if (id instanceof Integer && ((Integer) id).intValue() < 0) {
-            throw new DaoMethodParameterException("Param id must be >= 0");
+            throw new IllegalArgumentException("Param id must be >= 0");
         }
 
-        throw new DaoMethodParameterException("Param id's type must be Long or String or Integer");
+        throw new IllegalArgumentException("Param id's type must be Long or String or Integer");
 
     }
 
@@ -154,7 +152,7 @@ public class DaoHelper {
      */
     public static void checkArgumentIds(List<Serializable> ids) {
         if (CollectionUtils.isEmpty(ids)) {
-            throw new DaoMethodParameterException("Param ids must be not null and empty");
+            throw new IllegalArgumentException("Param ids must be not null and empty");
         }
         checkArgumentId(ids.get(0));
     }
@@ -164,7 +162,7 @@ public class DaoHelper {
      */
     public static void checkArgumentPageable(Pageable pageable) {
         if (pageable == null) {
-            throw new DaoMethodParameterException("Param pageable must be not null");
+            throw new IllegalArgumentException("Param pageable must be not null");
         }
     }
 
@@ -173,7 +171,7 @@ public class DaoHelper {
      */
     public static void checkArgumentFields(List<String> fields) {
         if (CollectionUtils.isEmpty(fields)) {
-            throw new DaoMethodParameterException("Param fields must be not null and empty");
+            throw new IllegalArgumentException("Param fields must be not null and empty");
         }
     }
 
@@ -182,7 +180,7 @@ public class DaoHelper {
      */
     public static void checkArgumentOrderBys(List<OrderBy> orderBys) {
         if (CollectionUtils.isEmpty(orderBys)) {
-            throw new DaoMethodParameterException("Param orderBys must be not null and empty");
+            throw new IllegalArgumentException("Param orderBys must be not null and empty");
         }
     }
 
@@ -191,7 +189,7 @@ public class DaoHelper {
      */
     public static void checkArgument(String sql) {
         if (StringUtils.isBlank(sql)) {
-            throw new DaoMethodParameterException("Param sql must be not null and empty");
+            throw new IllegalArgumentException("Param sql must be not null and empty");
         }
     }
 
@@ -200,7 +198,7 @@ public class DaoHelper {
      */
     public static void checkArgumentEntity(Object entity) {
         if (entity == null) {
-            throw new DaoMethodParameterException("Param entity must be not null");
+            throw new IllegalArgumentException("Param entity must be not null");
         }
     }
 
@@ -209,10 +207,10 @@ public class DaoHelper {
      */
     public static void checkArgumentUpdate(Update update) {
         if (update == null) {
-            throw new DaoMethodParameterException("Param update must be not null");
+            throw new IllegalArgumentException("Param update must be not null");
         }
         if (update.getSetMap().isEmpty()) {
-            throw new DaoMethodParameterException("Param update must be set");
+            throw new IllegalArgumentException("Param update must be set");
         }
     }
 
@@ -226,7 +224,7 @@ public class DaoHelper {
         //得到dao注解描述信息
         Dao daoAnnotation = (Dao) daoClass.getAnnotation(Dao.class);
         if (daoAnnotation == null) {
-            throw new DaoException("entity[" + daoClassName + "] must have Dao annotation");
+            throw new RuntimeException("entity[" + daoClassName + "] must have Dao annotation");
         }
     }
 

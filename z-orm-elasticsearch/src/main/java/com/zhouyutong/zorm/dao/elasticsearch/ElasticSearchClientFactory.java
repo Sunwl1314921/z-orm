@@ -2,7 +2,6 @@ package com.zhouyutong.zorm.dao.elasticsearch;
 
 import com.google.common.collect.Maps;
 import com.zhouyutong.zorm.constant.SymbolConstant;
-import com.zhouyutong.zorm.exception.DaoException;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -46,7 +45,7 @@ public final class ElasticSearchClientFactory {
             RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(httpHost));
             transportClientMap.put(elasticSearchSettings, client);
         } catch (Exception e) {
-            throw new DaoException("无法生产Client[" + elasticSearchSettings + "]", e);
+            throw new RuntimeException("无法生产Client[" + elasticSearchSettings + "]", e);
         }
     }
 }

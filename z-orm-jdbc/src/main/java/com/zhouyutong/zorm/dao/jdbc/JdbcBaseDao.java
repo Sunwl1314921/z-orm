@@ -5,19 +5,16 @@ import com.zhouyutong.zorm.constant.MixedConstant;
 import com.zhouyutong.zorm.dao.AbstractBaseDao;
 import com.zhouyutong.zorm.dao.DaoHelper;
 import com.zhouyutong.zorm.dao.DatabaseRouter;
-import com.zhouyutong.zorm.dao.jdbc.enums.DialectEnum;
 import com.zhouyutong.zorm.entity.IdEntity;
-import com.zhouyutong.zorm.exception.DaoException;
-import com.zhouyutong.zorm.exception.DaoExceptionTranslator;
-import com.zhouyutong.zorm.exception.UniqueConstraintException;
+import com.zhouyutong.zorm.enums.DialectEnum;
 import com.zhouyutong.zorm.query.*;
+import com.zhouyutong.zorm.utils.ExceptionTranslator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.core.SqlTypeValue;
@@ -56,21 +53,21 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public boolean exists(Serializable id) throws DaoException {
+    public boolean exists(Serializable id) {
         DaoHelper.checkArgumentId(id);
 
         return this.exists(Criteria.where(entityMapper.getPkFieldName(), id));
     }
 
     @Override
-    public boolean exists(Criteria criteria) throws DaoException {
+    public boolean exists(Criteria criteria) {
         DaoHelper.checkArgumentCriteria(criteria);
 
         return null != this.findOne(Arrays.asList(entityMapper.getPkFieldName()), criteria);
     }
 
     @Override
-    public long countByCriteria(Criteria criteria) throws DaoException {
+    public long countByCriteria(Criteria criteria) {
         DaoHelper.checkArgumentCriteria(criteria);
 
         List<Object> valueList = Lists.newArrayList();
@@ -86,13 +83,13 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
             }
 
             return ((JdbcTemplate) router.readRoute()).queryForObject(sql.toString(), valueList.toArray(), Long.class);
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    public long countAll() throws DaoException {
+    public long countAll() {
         StringBuilder sql = new StringBuilder();
 
         try {
@@ -103,13 +100,13 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 log.debug(JdbcHelper.formatSql(sql.toString()));
             }
             return ((JdbcTemplate) router.readRoute()).queryForObject(sql.toString(), Long.class);
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    protected long countBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected long countBySql(String sql, LinkedHashMap<String, Object> param) {
         DaoHelper.checkArgument(sql);
 
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
@@ -124,20 +121,20 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 return ((JdbcTemplate) router.readRoute()).queryForObject(sql, valueList.toArray(), Long.class);
             }
 
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    public T findOneById(Serializable id) throws DaoException {
+    public T findOneById(Serializable id) {
         DaoHelper.checkArgumentId(id);
 
         return this.findOne(Criteria.where(entityMapper.getPkFieldName(), id));
     }
 
     @Override
-    public T findOneByQuery(Query query) throws DaoException {
+    public T findOneByQuery(Query query) {
         DaoHelper.checkArgumentQuery(query);
 
         query.offset(MixedConstant.INT_0).limit(MixedConstant.INT_1);
@@ -146,7 +143,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    protected T findOneBySql(String sqlOrgin, LinkedHashMap<String, Object> param) throws DaoException {
+    protected T findOneBySql(String sqlOrgin, LinkedHashMap<String, Object> param) {
         DaoHelper.checkArgument(sqlOrgin);
 
         List<T> entityList = this.findListBySql(sqlOrgin, param);
@@ -154,14 +151,14 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findListByIds(List<Serializable> ids) throws DaoException {
+    public List<T> findListByIds(List<Serializable> ids) {
         DaoHelper.checkArgumentIds(ids);
 
         return this.findList(Criteria.where(entityMapper.getPkFieldName(), CriteriaOperators.IN, ids));
     }
 
     @Override
-    public List<T> findListByQuery(Query query) throws DaoException {
+    public List<T> findListByQuery(Query query) {
         DaoHelper.checkArgumentQuery(query);
 
         List<Object> valueList = Lists.newArrayList();
@@ -188,13 +185,13 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 entityList.add(JdbcHelper.map2Entity(map, entityMapper, entityClass));
             }
             return entityList;
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    public List<T> findListByQuery(Query query, Pageable pageable) throws DaoException {
+    public List<T> findListByQuery(Query query, Pageable pageable) {
         DaoHelper.checkArgumentQuery(query);
         DaoHelper.checkArgumentPageable(pageable);
 
@@ -205,7 +202,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    protected List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) {
         DaoHelper.checkArgument(sql);
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
 
@@ -229,13 +226,13 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 entityList.add(JdbcHelper.map2Entity(map, entityMapper, entityClass));
             }
             return entityList;
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    public int insert(T entity) throws DaoException {
+    public int insert(T entity) {
         DaoHelper.checkArgumentEntity(entity);
 
         final IdEntity idEntity = (IdEntity) entity;
@@ -269,22 +266,20 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 DaoHelper.setColumnValue(pkField, idEntity, keyHolder.getKey());
             }
             return n;
-        } catch (DuplicateKeyException e) { //唯一约束或主键冲突
-            throw new UniqueConstraintException(e.getCause().getLocalizedMessage(), e);
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    public int update(T entity) throws DaoException {
+    public int update(T entity) {
         DaoHelper.checkArgumentEntity(entity);
 
         return this.update(entity, null);
     }
 
     @Override
-    public int update(T entity, List<String> propetyList) throws DaoException {
+    public int update(T entity, List<String> propetyList) {
         DaoHelper.checkArgumentEntity(entity);
 
         IdEntity idEntity = (IdEntity) entity;
@@ -293,7 +288,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public int updateById(Serializable id, Update update) throws DaoException {
+    public int updateById(Serializable id, Update update) {
         DaoHelper.checkArgumentId(id);
         DaoHelper.checkArgumentUpdate(update);
 
@@ -301,7 +296,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public int updateByIds(List<Serializable> ids, Update update) throws DaoException {
+    public int updateByIds(List<Serializable> ids, Update update) {
         DaoHelper.checkArgumentIds(ids);
         DaoHelper.checkArgumentUpdate(update);
 
@@ -309,7 +304,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public int updateByCriteria(Criteria criteria, Update update) throws DaoException {
+    public int updateByCriteria(Criteria criteria, Update update) {
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentUpdate(update);
 
@@ -325,13 +320,13 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
             }
             return ((JdbcTemplate) router.writeRoute()).update(sql.toString(), valueList.toArray());
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    protected int updateBySql(String sql, LinkedHashMap<String, Object> param) throws DaoException {
+    protected int updateBySql(String sql, LinkedHashMap<String, Object> param) {
         DaoHelper.checkArgument(sql);
 
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
@@ -346,13 +341,13 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 return ((JdbcTemplate) router.writeRoute()).update(sql, valueList.toArray());
             }
 
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    public int deleteById(Serializable id) throws DaoException {
+    public int deleteById(Serializable id) {
         DaoHelper.checkArgumentId(id);
 
         StringBuilder sql = new StringBuilder();
@@ -364,13 +359,13 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
             }
 
             return ((JdbcTemplate) router.writeRoute()).update(sql.toString(), new Object[]{id});
-        } catch (RuntimeException e) {
-            throw DaoExceptionTranslator.translate(e);
+        } catch (Throwable e) {
+            throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
 
     @Override
-    public T findOne(List<String> fields, Criteria criteria) throws DaoException {
+    public T findOne(List<String> fields, Criteria criteria) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentCriteria(criteria);
 
@@ -380,7 +375,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public T findOne(Criteria criteria) throws DaoException {
+    public T findOne(Criteria criteria) {
         DaoHelper.checkArgumentCriteria(criteria);
 
         Query query = Query.query(criteria);
@@ -388,7 +383,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findList(List<String> fields, Criteria criteria) throws DaoException {
+    public List<T> findList(List<String> fields, Criteria criteria) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentCriteria(criteria);
 
@@ -398,7 +393,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys) throws DaoException {
+    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentOrderBys(orderBys);
@@ -410,7 +405,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys, Pageable pageable) throws DaoException {
+    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys, Pageable pageable) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentOrderBys(orderBys);
@@ -423,7 +418,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findList(Criteria criteria) throws DaoException {
+    public List<T> findList(Criteria criteria) {
         DaoHelper.checkArgumentCriteria(criteria);
 
         Query query = Query.query(criteria);
@@ -431,7 +426,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findList(Criteria criteria, List<OrderBy> orderBys) throws DaoException {
+    public List<T> findList(Criteria criteria, List<OrderBy> orderBys) {
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentOrderBys(orderBys);
 
@@ -441,7 +436,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findList(Criteria criteria, List<OrderBy> orderBys, Pageable pageable) throws DaoException {
+    public List<T> findList(Criteria criteria, List<OrderBy> orderBys, Pageable pageable) {
         DaoHelper.checkArgumentCriteria(criteria);
         DaoHelper.checkArgumentOrderBys(orderBys);
         DaoHelper.checkArgumentPageable(pageable);
@@ -452,13 +447,13 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findAllList() throws DaoException {
+    public List<T> findAllList() {
         Query query = Query.query();
         return this.findListByQuery(query);
     }
 
     @Override
-    public List<T> findAllList(List<String> fields) throws DaoException {
+    public List<T> findAllList(List<String> fields) {
         DaoHelper.checkArgumentFields(fields);
 
         Query query = Query.query();
@@ -467,7 +462,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys) throws DaoException {
+    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentOrderBys(orderBys);
 
@@ -478,7 +473,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys, Pageable pageable) throws DaoException {
+    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys, Pageable pageable) {
         DaoHelper.checkArgumentFields(fields);
         DaoHelper.checkArgumentOrderBys(orderBys);
         DaoHelper.checkArgumentPageable(pageable);
@@ -490,7 +485,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     }
 
     @Override
-    public List<T> findAllList(List<OrderBy> orderBys, Pageable pageable) throws DaoException {
+    public List<T> findAllList(List<OrderBy> orderBys, Pageable pageable) {
         DaoHelper.checkArgumentOrderBys(orderBys);
         DaoHelper.checkArgumentPageable(pageable);
 
@@ -517,7 +512,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         String settingsName = DaoHelper.getSettingsName(daoClass);
         this.jdbcSettings = (JdbcSettings) this.applicationContext.getBean(settingsName);
         if (this.jdbcSettings == null) {
-            throw new DaoException("注解Dao的属性settingBeanName[" + settingsName + "]必须对应一个有效的JdbcSettings bean");
+            throw new RuntimeException("注解Dao的属性settingBeanName[" + settingsName + "]必须对应一个有效的JdbcSettings bean");
         }
 
         //create router

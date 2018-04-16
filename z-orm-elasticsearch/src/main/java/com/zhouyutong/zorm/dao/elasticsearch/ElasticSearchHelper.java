@@ -1,12 +1,12 @@
 package com.zhouyutong.zorm.dao.elasticsearch;
 
 import com.google.common.collect.Lists;
+import com.zhouyutong.zapplication.serialization.json.FastJson;
 import com.zhouyutong.zorm.annotation.PK;
 import com.zhouyutong.zorm.constant.MixedConstant;
 import com.zhouyutong.zorm.dao.DaoHelper;
 import com.zhouyutong.zorm.dao.elasticsearch.annotation.Document;
 import com.zhouyutong.zorm.entity.IdEntity;
-import com.zhouyutong.zorm.exception.DaoException;
 import com.zhouyutong.zorm.query.Criteria;
 import com.zhouyutong.zorm.query.CriteriaOperators;
 import org.apache.commons.collections.CollectionUtils;
@@ -122,27 +122,6 @@ public final class ElasticSearchHelper {
         return FastJson.jsonStr2Object(source, entityClass);
     }
 
-    static DaoException translateElasticSearchException(Exception e) {
-        /**
-         * 按照惯例通常limit=0表示查询所有的,但es5默认根据index.max_result_window配置form+size不能超过10000
-         * 所以这里要设置成很大的值让es抛出异常以便研发知道他没有得到期望的记录数
-         * 官方提示：
-         * {
-         * "type": "query_phase_execution_exception",
-         * "reason": "Result window is too large, from + size must be less than or equal to: [10000] but was [489308].
-         * See the scroll api for a more efficient way to request large data sets. This limit can be set by changing the [index.max_result_window] index level setting."
-         * }
-         */
-        StringBuilder sb = new StringBuilder();
-        String errorMessage = e.toString();
-        if (errorMessage.contains("max_result_window")) {
-            sb.append("ElasticSearch查询结果限制[from + size不能超过index.max_result_window设置的值,默认是10000]");
-            sb.append("官方错误:");
-            sb.append(errorMessage);
-        }
-        throw new DaoException(sb.toString(), e);
-    }
-
     public static String getIndexName(Class entityClass) {
         Document documentAnn = (Document) entityClass.getAnnotation(Document.class);
         return documentAnn.indexName();
@@ -160,22 +139,22 @@ public final class ElasticSearchHelper {
      */
     public static void checkEntityClass(Class entityClass) {
         if (entityClass == null) {
-            throw new DaoException("can not get the entity's Generic Type");
+            throw new RuntimeException("can not get the entity's Generic Type");
         }
 
         String entityClassName = entityClass.getName();
         if (!IdEntity.class.isAssignableFrom(entityClass)) {
-            throw new DaoException("entity[" + entityClassName + "] must implements IdEntity");
+            throw new RuntimeException("entity[" + entityClassName + "] must implements IdEntity");
         }
 
         Document tableAnnotation = (Document) entityClass.getAnnotation(Document.class);
         if (tableAnnotation == null) {
-            throw new DaoException("entity[" + entityClassName + "] must have Document annotation");
+            throw new RuntimeException("entity[" + entityClassName + "] must have Document annotation");
         }
 
         Field[] fields = entityClass.getDeclaredFields();
         if (fields == null || fields.length == 0) {
-            throw new DaoException("entity[" + entityClassName + "] must have least one Field");
+            throw new RuntimeException("entity[" + entityClassName + "] must have least one Field");
         }
 
         int pkAnnotationCount = 0;
@@ -187,7 +166,7 @@ public final class ElasticSearchHelper {
             }
             com.zhouyutong.zorm.dao.elasticsearch.annotation.Field columnAnnotation = field.getAnnotation(com.zhouyutong.zorm.dao.elasticsearch.annotation.Field.class);
             if (columnAnnotation == null) {
-                throw new DaoException("entity[" + entityClassName + "]的字段[" + field.getName() + "]必须有Column注解");
+                throw new RuntimeException("entity[" + entityClassName + "]的字段[" + field.getName() + "]必须有Column注解");
             }
 
             PK pkAnnotation = field.getAnnotation(PK.class);
@@ -197,10 +176,10 @@ public final class ElasticSearchHelper {
             }
         }
         if (pkAnnotationCount != 1) {
-            throw new DaoException("entity[" + entityClassName + "] 有且只能有一个PK注解的字段");
+            throw new RuntimeException("entity[" + entityClassName + "] 有且只能有一个PK注解的字段");
         }
         if (!supportPKFieldType.contains(pkFieldTypeName)) {
-            throw new DaoException("entity[" + entityClassName + "]的pk字段类型只能是Long,Integer,String其中之一");
+            throw new RuntimeException("entity[" + entityClassName + "]的pk字段类型只能是Long,Integer,String其中之一");
         }
     }
 }

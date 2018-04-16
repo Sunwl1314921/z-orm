@@ -1,6 +1,5 @@
 package com.zhouyutong.zorm.dao.jdbc.codegenerate;
 
-import com.zhouyutong.zorm.exception.DaoException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
@@ -18,6 +17,6 @@ public class GenerateHelper {
      * 生成基于mybatis或jdbc的dao、entity代码
      */
     public void genterate() {
-        throw new DaoException("默认生成代码是关闭的");
+        throw new RuntimeException("默认生成代码是关闭的");
     }
 }
