@@ -12,6 +12,7 @@ import com.zhouyutong.zorm.entity.IdEntity;
 import com.zhouyutong.zorm.enums.DialectEnum;
 import com.zhouyutong.zorm.query.*;
 import com.zhouyutong.zorm.utils.BeanUtils;
+import com.zhouyutong.zorm.utils.ExceptionTranslator;
 import com.zhouyutong.zorm.utils.StrUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -234,7 +235,7 @@ public final class JdbcHelper {
             rs.next();
             return rs.getLong(MixedConstant.INT_1);
         } catch (SQLException e) {
-            throw new RuntimeException("无法获取oracle的sequence:" + sequence);
+            throw ExceptionTranslator.translate(e, DialectEnum.ORACLE);
         } finally {
             JdbcUtils.closeResultSet(rs);
             JdbcUtils.closeStatement(pstmt);

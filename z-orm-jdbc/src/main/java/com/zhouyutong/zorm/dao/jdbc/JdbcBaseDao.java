@@ -15,6 +15,7 @@ import org.apache.commons.collections.MapUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.core.SqlTypeValue;
@@ -72,18 +73,17 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
 
         List<Object> valueList = Lists.newArrayList();
         StringBuilder sql = new StringBuilder();
+        sql.append(JdbcHelper.SELECT_COUNT());
+        sql.append(JdbcHelper.FROM(entityClass));
+        sql.append(JdbcHelper.WHERE(criteria, valueList, entityMapper));
+
+        if (log.isDebugEnabled()) {
+            log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
+        }
 
         try {
-            sql.append(JdbcHelper.SELECT_COUNT());
-            sql.append(JdbcHelper.FROM(entityClass));
-            sql.append(JdbcHelper.WHERE(criteria, valueList, entityMapper));
-
-            if (log.isDebugEnabled()) {
-                log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
-            }
-
             return ((JdbcTemplate) router.readRoute()).queryForObject(sql.toString(), valueList.toArray(), Long.class);
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
@@ -91,16 +91,16 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     @Override
     public long countAll() {
         StringBuilder sql = new StringBuilder();
+        sql.append(JdbcHelper.SELECT_COUNT());
+        sql.append(JdbcHelper.FROM(entityClass));
+
+        if (log.isDebugEnabled()) {
+            log.debug(JdbcHelper.formatSql(sql.toString()));
+        }
 
         try {
-            sql.append(JdbcHelper.SELECT_COUNT());
-            sql.append(JdbcHelper.FROM(entityClass));
-
-            if (log.isDebugEnabled()) {
-                log.debug(JdbcHelper.formatSql(sql.toString()));
-            }
             return ((JdbcTemplate) router.readRoute()).queryForObject(sql.toString(), Long.class);
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
@@ -110,18 +110,16 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         DaoHelper.checkArgument(sql);
 
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
+        if (log.isDebugEnabled()) {
+            log.debug(JdbcHelper.formatSql(sql, valueList));
+        }
         try {
-            if (log.isDebugEnabled()) {
-                log.debug(JdbcHelper.formatSql(sql, valueList));
-            }
-
             if (CollectionUtils.isEmpty(valueList)) {
                 return ((JdbcTemplate) router.readRoute()).queryForObject(sql, Long.class);
             } else {
                 return ((JdbcTemplate) router.readRoute()).queryForObject(sql, valueList.toArray(), Long.class);
             }
-
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
@@ -163,19 +161,18 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
 
         List<Object> valueList = Lists.newArrayList();
         StringBuilder sql = new StringBuilder();
+        sql.append(JdbcHelper.SELECT(query, entityMapper));
+        sql.append(JdbcHelper.FROM(entityClass));
+        sql.append(JdbcHelper.WHERE(query.getCriteria(), valueList, entityMapper));
+        sql.append(JdbcHelper.GROUP_BY(query.getGroupBys(), entityMapper));
+        sql.append(JdbcHelper.ORDER_BY(query.getOrderBys(), entityMapper));
+        sql.append(JdbcHelper.LIMIT(query.getOffset(), query.getLimit(), jdbcSettings.getDialectEnum(), sql));
+
+        if (log.isDebugEnabled()) {
+            log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
+        }
 
         try {
-            sql.append(JdbcHelper.SELECT(query, entityMapper));
-            sql.append(JdbcHelper.FROM(entityClass));
-            sql.append(JdbcHelper.WHERE(query.getCriteria(), valueList, entityMapper));
-            sql.append(JdbcHelper.GROUP_BY(query.getGroupBys(), entityMapper));
-            sql.append(JdbcHelper.ORDER_BY(query.getOrderBys(), entityMapper));
-            sql.append(JdbcHelper.LIMIT(query.getOffset(), query.getLimit(), jdbcSettings.getDialectEnum(), sql));
-
-            if (log.isDebugEnabled()) {
-                log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
-            }
-
             List<Map<String, Object>> list = ((JdbcTemplate) router.readRoute()).queryForList(sql.toString(), valueList.toArray());
             if (CollectionUtils.isEmpty(list)) {
                 return null;
@@ -185,7 +182,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 entityList.add(JdbcHelper.map2Entity(map, entityMapper, entityClass));
             }
             return entityList;
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
@@ -206,12 +203,12 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         DaoHelper.checkArgument(sql);
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
 
-        try {
-            if (log.isDebugEnabled()) {
-                log.debug(JdbcHelper.formatSql(sql, valueList));
-            }
+        if (log.isDebugEnabled()) {
+            log.debug(JdbcHelper.formatSql(sql, valueList));
+        }
 
-            List<Map<String, Object>> list;
+        List<Map<String, Object>> list;
+        try {
             if (CollectionUtils.isEmpty(valueList)) {
                 list = ((JdbcTemplate) router.readRoute()).queryForList(sql);
             } else {
@@ -226,7 +223,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 entityList.add(JdbcHelper.map2Entity(map, entityMapper, entityClass));
             }
             return entityList;
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
@@ -240,24 +237,24 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         final Object pkValue = DaoHelper.getColumnValue(pkField, idEntity);
         final List<Object> valueList = Lists.newArrayList();
 
+        PreparedStatementCreator psc = connection -> {
+            String insertSqlToUse = JdbcHelper.INSERT(idEntity, valueList, entityMapper, entityClass, jdbcSettings.getDialectEnum(), connection);
+            PreparedStatement ps;
+            if (DaoHelper.hasSetPkValue(pkValue)) {
+                ps = connection.prepareStatement(insertSqlToUse);
+            } else {
+                ps = connection.prepareStatement(insertSqlToUse, new String[]{entityMapper.getPkFieldName()});
+            }
+
+            int i = MixedConstant.INT_0;
+            for (Object value : valueList) {
+                StatementCreatorUtils.setParameterValue(ps, ++i, SqlTypeValue.TYPE_UNKNOWN, value);
+            }
+            return ps;
+        };
+
+        int n;
         try {
-            PreparedStatementCreator psc = connection -> {
-                String insertSqlToUse = JdbcHelper.INSERT(idEntity, valueList, entityMapper, entityClass, jdbcSettings.getDialectEnum(), connection);
-                PreparedStatement ps;
-                if (DaoHelper.hasSetPkValue(pkValue)) {
-                    ps = connection.prepareStatement(insertSqlToUse);
-                } else {
-                    ps = connection.prepareStatement(insertSqlToUse, new String[]{entityMapper.getPkFieldName()});
-                }
-
-                int i = MixedConstant.INT_0;
-                for (Object value : valueList) {
-                    StatementCreatorUtils.setParameterValue(ps, ++i, SqlTypeValue.TYPE_UNKNOWN, value);
-                }
-                return ps;
-            };
-
-            int n;
             if (DaoHelper.hasSetPkValue(pkValue) || DialectEnum.ORACLE.equals(jdbcSettings.getDialectEnum())) {//KeyHolder不支持oracle
                 n = ((JdbcTemplate) router.writeRoute()).update(psc);
             } else {
@@ -266,7 +263,7 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 DaoHelper.setColumnValue(pkField, idEntity, keyHolder.getKey());
             }
             return n;
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
@@ -311,16 +308,16 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         List<Object> valueList = Lists.newArrayList();
         StringBuilder sql = new StringBuilder();
 
-        try {
-            sql.append(JdbcHelper.UPDATE(entityClass));
-            sql.append(JdbcHelper.SET(update, valueList, entityMapper));
-            sql.append(JdbcHelper.WHERE(criteria, valueList, entityMapper));
+        sql.append(JdbcHelper.UPDATE(entityClass));
+        sql.append(JdbcHelper.SET(update, valueList, entityMapper));
+        sql.append(JdbcHelper.WHERE(criteria, valueList, entityMapper));
 
-            if (log.isDebugEnabled()) {
-                log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
-            }
+        if (log.isDebugEnabled()) {
+            log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
+        }
+        try {
             return ((JdbcTemplate) router.writeRoute()).update(sql.toString(), valueList.toArray());
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
@@ -330,18 +327,18 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         DaoHelper.checkArgument(sql);
 
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
-        try {
-            if (log.isDebugEnabled()) {
-                log.debug(JdbcHelper.formatSql(sql, valueList));
-            }
 
+        if (log.isDebugEnabled()) {
+            log.debug(JdbcHelper.formatSql(sql, valueList));
+        }
+        try {
             if (CollectionUtils.isEmpty(valueList)) {
                 return ((JdbcTemplate) router.writeRoute()).update(sql);
             } else {
                 return ((JdbcTemplate) router.writeRoute()).update(sql, valueList.toArray());
             }
 
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
@@ -351,15 +348,14 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         DaoHelper.checkArgumentId(id);
 
         StringBuilder sql = new StringBuilder();
+        sql.append(JdbcHelper.DELETE(entityClass));
+        if (log.isDebugEnabled()) {
+            List<Object> valueList = Lists.newArrayList(id);
+            log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
+        }
         try {
-            sql.append(JdbcHelper.DELETE(entityClass));
-            if (log.isDebugEnabled()) {
-                List<Object> valueList = Lists.newArrayList(id);
-                log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
-            }
-
             return ((JdbcTemplate) router.writeRoute()).update(sql.toString(), new Object[]{id});
-        } catch (Throwable e) {
+        } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
     }
