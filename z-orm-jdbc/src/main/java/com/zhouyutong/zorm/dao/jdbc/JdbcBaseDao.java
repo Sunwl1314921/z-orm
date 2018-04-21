@@ -360,7 +360,6 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         }
     }
 
-    @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
     }
