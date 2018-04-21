@@ -44,10 +44,6 @@ public abstract class AbstractBaseDao<T> {
 
     protected abstract long countBySql(String sql, LinkedHashMap<String, Object> param);
 
-    public abstract T findOne(List<String> fields, Criteria criteria);
-
-    public abstract T findOne(Criteria criteria);
-
     public abstract T findOneById(Serializable id);
 
     public abstract T findOneByQuery(Query query);
@@ -62,26 +58,121 @@ public abstract class AbstractBaseDao<T> {
 
     protected abstract List<T> findListBySql(String sql, LinkedHashMap<String, Object> param);
 
-    public abstract List<T> findList(List<String> fields, Criteria criteria);
+    public T findOne(List<String> fields, Criteria criteria) {
+        DaoHelper.checkArgumentFields(fields);
+        DaoHelper.checkArgumentCriteria(criteria);
 
-    public abstract List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys);
+        Query query = Query.query(criteria);
+        query.includeField(fields.toArray(new String[fields.size()]));
+        return this.findOneByQuery(query);
+    }
 
-    public abstract List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys, Pageable pageable);
+    public T findOne(Criteria criteria) {
+        DaoHelper.checkArgumentCriteria(criteria);
 
-    public abstract List<T> findList(Criteria criteria);
+        Query query = Query.query(criteria);
+        return this.findOneByQuery(query);
+    }
 
-    public abstract List<T> findList(Criteria criteria, List<OrderBy> orderBys);
+    public List<T> findList(List<String> fields, Criteria criteria) {
+        DaoHelper.checkArgumentFields(fields);
+        DaoHelper.checkArgumentCriteria(criteria);
 
-    public abstract List<T> findList(Criteria criteria, List<OrderBy> orderBys, Pageable pageable);
+        Query query = Query.query(criteria);
+        query.includeField(fields.toArray(new String[fields.size()]));
+        return this.findListByQuery(query);
+    }
 
-    public abstract List<T> findAllList();
+    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys) {
+        DaoHelper.checkArgumentFields(fields);
+        DaoHelper.checkArgumentCriteria(criteria);
+        DaoHelper.checkArgumentOrderBys(orderBys);
 
-    public abstract List<T> findAllList(List<String> fields);
+        Query query = Query.query(criteria);
+        query.includeField(fields.toArray(new String[fields.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        return this.findListByQuery(query);
+    }
 
-    public abstract List<T> findAllList(List<String> fields, List<OrderBy> orderBys);
+    public List<T> findList(List<String> fields, Criteria criteria, List<OrderBy> orderBys, Pageable pageable) {
+        DaoHelper.checkArgumentFields(fields);
+        DaoHelper.checkArgumentCriteria(criteria);
+        DaoHelper.checkArgumentOrderBys(orderBys);
+        DaoHelper.checkArgumentPageable(pageable);
 
-    public abstract List<T> findAllList(List<String> fields, List<OrderBy> orderBys, Pageable pageable);
+        Query query = Query.query(criteria);
+        query.includeField(fields.toArray(new String[fields.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        return this.findListByQuery(query, pageable);
+    }
 
-    public abstract List<T> findAllList(List<OrderBy> orderBys, Pageable pageable);
+    public List<T> findList(Criteria criteria) {
+        DaoHelper.checkArgumentCriteria(criteria);
+
+        Query query = Query.query(criteria);
+        return this.findListByQuery(query);
+    }
+
+    public List<T> findList(Criteria criteria, List<OrderBy> orderBys) {
+        DaoHelper.checkArgumentCriteria(criteria);
+        DaoHelper.checkArgumentOrderBys(orderBys);
+
+        Query query = Query.query(criteria);
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        return this.findListByQuery(query);
+    }
+
+    public List<T> findList(Criteria criteria, List<OrderBy> orderBys, Pageable pageable) {
+        DaoHelper.checkArgumentCriteria(criteria);
+        DaoHelper.checkArgumentOrderBys(orderBys);
+        DaoHelper.checkArgumentPageable(pageable);
+
+        Query query = Query.query(criteria);
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        return this.findListByQuery(query, pageable);
+    }
+
+    public List<T> findAllList() {
+        Query query = Query.query();
+        return this.findListByQuery(query);
+    }
+
+    public List<T> findAllList(List<String> fields) {
+        DaoHelper.checkArgumentFields(fields);
+
+        Query query = Query.query();
+        query.includeField(fields.toArray(new String[fields.size()]));
+        return this.findListByQuery(query);
+    }
+
+    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys) {
+        DaoHelper.checkArgumentFields(fields);
+        DaoHelper.checkArgumentOrderBys(orderBys);
+
+        Query query = Query.query();
+        query.includeField(fields.toArray(new String[fields.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        return this.findListByQuery(query);
+    }
+
+    public List<T> findAllList(List<String> fields, List<OrderBy> orderBys, Pageable pageable) {
+        DaoHelper.checkArgumentFields(fields);
+        DaoHelper.checkArgumentOrderBys(orderBys);
+        DaoHelper.checkArgumentPageable(pageable);
+
+        Query query = Query.query();
+        query.includeField(fields.toArray(new String[fields.size()]));
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        return this.findListByQuery(query, pageable);
+    }
+
+    public List<T> findAllList(List<OrderBy> orderBys, Pageable pageable) {
+        DaoHelper.checkArgumentOrderBys(orderBys);
+        DaoHelper.checkArgumentPageable(pageable);
+
+        Query query = Query.query();
+        query.orderBy(orderBys.toArray(new OrderBy[orderBys.size()]));
+        return this.findListByQuery(query, pageable);
+    }
 
 }
