@@ -12,6 +12,7 @@
         <module>z-orm-core</module>
         <module>z-orm-jdbc</module>
         <module>z-orm-elasticsearch</module>
+        <module>z-orm-cassandra</module>
     </modules>
 
     <packaging>pom</packaging>
