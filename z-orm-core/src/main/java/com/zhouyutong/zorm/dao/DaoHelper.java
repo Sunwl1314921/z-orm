@@ -203,6 +203,18 @@ public class DaoHelper {
     }
 
     /**
+     * 批量插入前的校验
+     */
+    public static void checkArgumentBatchInsert(List<?> entityList) {
+        if (CollectionUtils.isEmpty(entityList)) {
+            throw new IllegalArgumentException("Param entityList must be not null and empty");
+        }
+        if (entityList.size() > 500) {
+            throw new IllegalArgumentException("Batch insert must not exceed 500 entities");
+        }
+    }
+
+    /**
      * 更新操作前的校验
      */
     public static void checkArgumentUpdate(Update update) {
@@ -290,5 +302,37 @@ public class DaoHelper {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 格式化执行的sql - 预编译sql
+     *
+     * @param sql
+     * @param valueList
+     * @return
+     */
+    public static String formatSql(String sql, final List<Object> valueList) {
+        if (CollectionUtils.isEmpty(valueList)) {
+            return sql;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        int length = sql.length();
+        int questionIndex = 0;
+        for (int i = 0; i < length; i++) {
+            char c = sql.charAt(i);
+            if (c == '?') {
+                Object value = valueList.get(questionIndex);
+                if (value instanceof String) {
+                    sb.append("'").append(value.toString()).append("'");
+                } else {
+                    sb.append(value.toString());
+                }
+                questionIndex++;
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 }

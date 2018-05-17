@@ -33,8 +33,6 @@ import java.util.*;
  * @since 2015/11/24
  */
 public final class JdbcHelper {
-    private static final String DEBUG_SQL_PREFIX = "==========Dao Layer Generate SQL:";
-
     private JdbcHelper() {
     }
 
@@ -390,47 +388,5 @@ public final class JdbcHelper {
         } else {//使用column注解定义的字段名
             return columnAnnotation.value().toLowerCase();
         }
-    }
-
-    /**
-     * 格式化执行的sql
-     *
-     * @param sql
-     * @param valueList
-     * @return
-     */
-    public static String formatSql(String sql, final List<Object> valueList) {
-        if (CollectionUtils.isEmpty(valueList)) {
-            return sql;
-        }
-
-        StringBuilder sb = new StringBuilder();
-        int length = sql.length();
-        int questionIndex = 0;
-        for (int i = 0; i < length; i++) {
-            char c = sql.charAt(i);
-            if (c == '?') {
-                Object value = valueList.get(questionIndex);
-                if (value instanceof String) {
-                    sb.append("'").append(value.toString()).append("'");
-                } else {
-                    sb.append(value.toString());
-                }
-                questionIndex++;
-            } else {
-                sb.append(c);
-            }
-        }
-        return DEBUG_SQL_PREFIX + sb.toString();
-    }
-
-    /**
-     * 格式化执行的sql
-     *
-     * @param sql
-     * @return
-     */
-    public static String formatSql(String sql) {
-        return formatSql(sql, Lists.newArrayList());
     }
 }

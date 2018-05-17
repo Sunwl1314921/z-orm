@@ -77,12 +77,15 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         sql.append(JdbcHelper.FROM(entityClass));
         sql.append(JdbcHelper.WHERE(criteria, valueList, entityMapper));
 
-        if (log.isDebugEnabled()) {
-            log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
-        }
-
         try {
-            return ((JdbcTemplate) router.readRoute()).queryForObject(sql.toString(), valueList.toArray(), Long.class);
+            if (log.isDebugEnabled()) {
+                log.debug("=========countByCriteria request:" + DaoHelper.formatSql(sql.toString(), valueList));
+            }
+            long count = ((JdbcTemplate) router.readRoute()).queryForObject(sql.toString(), valueList.toArray(), Long.class);
+            if (log.isDebugEnabled()) {
+                log.debug("=========countByCriteria response:" + count);
+            }
+            return count;
         } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
@@ -94,12 +97,15 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         sql.append(JdbcHelper.SELECT_COUNT());
         sql.append(JdbcHelper.FROM(entityClass));
 
-        if (log.isDebugEnabled()) {
-            log.debug(JdbcHelper.formatSql(sql.toString()));
-        }
-
         try {
-            return ((JdbcTemplate) router.readRoute()).queryForObject(sql.toString(), Long.class);
+            if (log.isDebugEnabled()) {
+                log.debug("=========countAll request:" + DaoHelper.formatSql(sql.toString(), null));
+            }
+            long count = ((JdbcTemplate) router.readRoute()).queryForObject(sql.toString(), Long.class);
+            if (log.isDebugEnabled()) {
+                log.debug("=========countAll response:" + count);
+            }
+            return count;
         } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
@@ -110,15 +116,20 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         DaoHelper.checkArgument(sql);
 
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
-        if (log.isDebugEnabled()) {
-            log.debug(JdbcHelper.formatSql(sql, valueList));
-        }
         try {
-            if (CollectionUtils.isEmpty(valueList)) {
-                return ((JdbcTemplate) router.readRoute()).queryForObject(sql, Long.class);
-            } else {
-                return ((JdbcTemplate) router.readRoute()).queryForObject(sql, valueList.toArray(), Long.class);
+            if (log.isDebugEnabled()) {
+                log.debug("=========countBySql request:" + DaoHelper.formatSql(sql.toString(), valueList));
             }
+            long count;
+            if (CollectionUtils.isEmpty(valueList)) {
+                count = ((JdbcTemplate) router.readRoute()).queryForObject(sql, Long.class);
+            } else {
+                count = ((JdbcTemplate) router.readRoute()).queryForObject(sql, valueList.toArray(), Long.class);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("=========countBySql response:" + count);
+            }
+            return count;
         } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
@@ -168,12 +179,14 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         sql.append(JdbcHelper.ORDER_BY(query.getOrderBys(), entityMapper));
         sql.append(JdbcHelper.LIMIT(query.getOffset(), query.getLimit(), jdbcSettings.getDialectEnum(), sql));
 
-        if (log.isDebugEnabled()) {
-            log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
-        }
-
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("=========findListByQuery request:" + DaoHelper.formatSql(sql.toString(), valueList));
+            }
             List<Map<String, Object>> list = ((JdbcTemplate) router.readRoute()).queryForList(sql.toString(), valueList.toArray());
+            if (log.isDebugEnabled()) {
+                log.debug("=========findListByQuery response:" + list);
+            }
             if (CollectionUtils.isEmpty(list)) {
                 return null;
             }
@@ -202,19 +215,19 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
     protected List<T> findListBySql(String sql, LinkedHashMap<String, Object> param) {
         DaoHelper.checkArgument(sql);
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
-
-        if (log.isDebugEnabled()) {
-            log.debug(JdbcHelper.formatSql(sql, valueList));
-        }
-
-        List<Map<String, Object>> list;
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("=========findListBySql request:" + DaoHelper.formatSql(sql.toString(), valueList));
+            }
+            List<Map<String, Object>> list;
             if (CollectionUtils.isEmpty(valueList)) {
                 list = ((JdbcTemplate) router.readRoute()).queryForList(sql);
             } else {
                 list = ((JdbcTemplate) router.readRoute()).queryForList(sql, valueList.toArray());
             }
-
+            if (log.isDebugEnabled()) {
+                log.debug("=========findListBySql response:" + list);
+            }
             if (CollectionUtils.isEmpty(list)) {
                 return null;
             }
@@ -236,9 +249,11 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         final Field pkField = DaoHelper.getPkField(idEntity);
         final Object pkValue = DaoHelper.getColumnValue(pkField, idEntity);
         final List<Object> valueList = Lists.newArrayList();
+        StringBuilder insertSql = new StringBuilder();
 
         PreparedStatementCreator psc = connection -> {
             String insertSqlToUse = JdbcHelper.INSERT(idEntity, valueList, entityMapper, entityClass, jdbcSettings.getDialectEnum(), connection);
+            insertSql.append(insertSqlToUse);
             PreparedStatement ps;
             if (DaoHelper.hasSetPkValue(pkValue)) {
                 ps = connection.prepareStatement(insertSqlToUse);
@@ -255,6 +270,9 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
 
         int n;
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("=========insert request:" + DaoHelper.formatSql(insertSql.toString(), valueList));
+            }
             if (DaoHelper.hasSetPkValue(pkValue) || DialectEnum.ORACLE.equals(jdbcSettings.getDialectEnum())) {//KeyHolder不支持oracle
                 n = ((JdbcTemplate) router.writeRoute()).update(psc);
             } else {
@@ -262,10 +280,18 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
                 n = ((JdbcTemplate) router.writeRoute()).update(psc, keyHolder);
                 DaoHelper.setColumnValue(pkField, idEntity, keyHolder.getKey());
             }
+            if (log.isDebugEnabled()) {
+                log.debug("=========insert response:" + n);
+            }
             return n;
         } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
+    }
+
+    @Override
+    public int insert(List<T> entity) {
+        throw new IllegalArgumentException("JdbcBaseDao not support batch insert.");
     }
 
     @Override
@@ -312,11 +338,15 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         sql.append(JdbcHelper.SET(update, valueList, entityMapper));
         sql.append(JdbcHelper.WHERE(criteria, valueList, entityMapper));
 
-        if (log.isDebugEnabled()) {
-            log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
-        }
         try {
-            return ((JdbcTemplate) router.writeRoute()).update(sql.toString(), valueList.toArray());
+            if (log.isDebugEnabled()) {
+                log.debug("=========updateByCriteria request:" + DaoHelper.formatSql(sql.toString(), valueList));
+            }
+            int n = ((JdbcTemplate) router.writeRoute()).update(sql.toString(), valueList.toArray());
+            if (log.isDebugEnabled()) {
+                log.debug("=========countByCriteria response:" + n);
+            }
+            return n;
         } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
@@ -327,17 +357,20 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
         DaoHelper.checkArgument(sql);
 
         List<Object> valueList = MapUtils.isEmpty(param) ? null : Lists.newArrayList(param.values());
-
-        if (log.isDebugEnabled()) {
-            log.debug(JdbcHelper.formatSql(sql, valueList));
-        }
         try {
-            if (CollectionUtils.isEmpty(valueList)) {
-                return ((JdbcTemplate) router.writeRoute()).update(sql);
-            } else {
-                return ((JdbcTemplate) router.writeRoute()).update(sql, valueList.toArray());
+            if (log.isDebugEnabled()) {
+                log.debug("=========updateBySql request:" + DaoHelper.formatSql(sql.toString(), valueList));
             }
-
+            int n;
+            if (CollectionUtils.isEmpty(valueList)) {
+                n = ((JdbcTemplate) router.writeRoute()).update(sql);
+            } else {
+                n = ((JdbcTemplate) router.writeRoute()).update(sql, valueList.toArray());
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("=========updateBySql response:" + n);
+            }
+            return n;
         } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
@@ -349,15 +382,24 @@ public abstract class JdbcBaseDao<T> extends AbstractBaseDao<T> implements Appli
 
         StringBuilder sql = new StringBuilder();
         sql.append(JdbcHelper.DELETE(entityClass));
-        if (log.isDebugEnabled()) {
-            List<Object> valueList = Lists.newArrayList(id);
-            log.debug(JdbcHelper.formatSql(sql.toString(), valueList));
-        }
         try {
-            return ((JdbcTemplate) router.writeRoute()).update(sql.toString(), new Object[]{id});
+            if (log.isDebugEnabled()) {
+                List<Object> valueList = Lists.newArrayList(id);
+                log.debug("=========deleteById request:" + DaoHelper.formatSql(sql.toString(), valueList));
+            }
+            int n = ((JdbcTemplate) router.writeRoute()).update(sql.toString(), new Object[]{id});
+            if (log.isDebugEnabled()) {
+                log.debug("=========deleteById response:" + n);
+            }
+            return n;
         } catch (DataAccessException e) {
             throw ExceptionTranslator.translate(e, jdbcSettings.getDialectEnum());
         }
+    }
+
+    @Override
+    public int deleteBySql(String sql, LinkedHashMap<String, Object> param) {
+        throw new RuntimeException("JdbcBaseDao do not support The Method");
     }
 
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {

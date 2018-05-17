@@ -12,8 +12,11 @@ import com.zhouyutong.zorm.utils.ExceptionTranslator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
+import org.apache.http.Header;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
@@ -393,6 +396,47 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     }
 
     @Override
+    public int insert(List<T> entityList) {
+        DaoHelper.checkArgumentBatchInsert(entityList);
+        RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
+
+        BulkRequest bulkRequest = new BulkRequest();
+        for (T entity : entityList) {
+            IdEntity idEntity = (IdEntity) entity;
+            Field pkField = DaoHelper.getPkField(idEntity);
+            Object pkValue = DaoHelper.getColumnValue(pkField, idEntity);
+            boolean hasSetPkValue = DaoHelper.hasSetPkValue(pkValue);
+            //使用es必须使用外部id
+            if (!hasSetPkValue) {
+                throw new IllegalArgumentException("Param entity must be set id");
+            }
+
+            IndexRequest indexRequest = new IndexRequest(index, type);
+            indexRequest.id(pkValue.toString());
+            indexRequest.opType(DocWriteRequest.OpType.CREATE);
+            String sourceJsonStr = FastJson.object2JsonStrUseNullValue(entity);
+            indexRequest.source(sourceJsonStr, XContentType.JSON);
+
+            bulkRequest.add(indexRequest);
+        }
+        Header[] headers = new Header[0];
+
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("=========batch insert request:" + bulkRequest.toString());
+            }
+            BulkResponse bulkResponse = client.bulk(bulkRequest, headers);
+            if (log.isDebugEnabled()) {
+                log.debug("=========batch insert response:" + bulkResponse.toString());
+            }
+
+            return bulkResponse.getItems().length;
+        } catch (IOException e) {
+            throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
+        }
+    }
+
+    @Override
     public int update(T entity) {
         DaoHelper.checkArgumentEntity(entity);
 
@@ -485,6 +529,11 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         } catch (IOException e) {
             throw ExceptionTranslator.translate(e, DialectEnum.ELASTICSEARCH);
         }
+    }
+
+    @Override
+    public int deleteBySql(String sql, LinkedHashMap<String, Object> param) {
+        throw new RuntimeException("ElasticSearchBaseDao do not support The Method");
     }
 
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {

@@ -18,6 +18,8 @@ public abstract class AbstractBaseDao<T> {
 
     public abstract int insert(T entity);
 
+    public abstract int insert(List<T> entityList);
+
     //更新实体所有属性
     public abstract int update(T entity);
 
@@ -33,6 +35,8 @@ public abstract class AbstractBaseDao<T> {
     protected abstract int updateBySql(String sql, LinkedHashMap<String, Object> param);
 
     public abstract int deleteById(Serializable id);
+
+    public abstract int deleteBySql(String sql, LinkedHashMap<String, Object> param);
 
     public abstract boolean exists(Serializable id);
 
