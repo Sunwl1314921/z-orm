@@ -50,8 +50,7 @@ public final class CassandraClientFactory {
             if (StringUtils.isNotBlank(cassandraSettings.getClusterName())) {
                 builder.withClusterName(cassandraSettings.getClusterName());
             }
-            Cluster cluster = builder.build();
-            Session session = cluster.connect();
+            Session session = builder.build().connect();
             clientMap.put(cassandraSettings, session);
         } catch (Exception e) {
             throw new RuntimeException("无法生产Client[" + cassandraSettings + "]", e);
