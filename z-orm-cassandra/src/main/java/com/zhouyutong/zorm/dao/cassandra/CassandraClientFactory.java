@@ -41,7 +41,7 @@ public final class CassandraClientFactory {
             InetSocketAddress[] inetSocketAddressArr = new InetSocketAddress[serverAddrArr.length];
             for (int i = 0; i < serverAddrArr.length; i++) {
                 String[] ipAndPort = serverAddrArr[i].split(SymbolConstant.COLON);
-                inetSocketAddressArr[i] = InetSocketAddress.createUnresolved(ipAndPort[0], Integer.parseInt(ipAndPort[1]));
+                inetSocketAddressArr[i] = new InetSocketAddress(ipAndPort[0], Integer.parseInt(ipAndPort[1]));
             }
             Cluster.Builder builder = Cluster.builder().addContactPointsWithPorts(inetSocketAddressArr);
             if (StringUtils.isNotBlank(cassandraSettings.getUserName()) && StringUtils.isNotBlank(cassandraSettings.getPassword())) {
