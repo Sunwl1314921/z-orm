@@ -9,6 +9,7 @@ import com.zhouyutong.zorm.dao.elasticsearch.annotation.Document;
 import com.zhouyutong.zorm.entity.IdEntity;
 import com.zhouyutong.zorm.query.Criteria;
 import com.zhouyutong.zorm.query.CriteriaOperators;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -18,6 +19,8 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +32,7 @@ import static org.elasticsearch.index.query.QueryBuilders.*;
  * @Author zhouyutong
  * @Date 2017/5/11
  */
+@Slf4j
 public final class ElasticSearchHelper {
     public static final char COMMON_WILDCARD = '%';
     public static final char ES_WILDCARD = '*';
@@ -122,9 +126,50 @@ public final class ElasticSearchHelper {
         return FastJson.jsonStr2Object(source, entityClass);
     }
 
+    public static String getRealIndex(String index, String indexPattern) {
+        String realIndex = index;
+        if (indexPattern == null || indexPattern.length() == 0) {
+            return realIndex;
+        }
+        String suffix = LocalDateTime.now().format(DateTimeFormatter.ofPattern(indexPattern));
+        realIndex = index + suffix;
+        return realIndex;
+    }
+
     public static String getIndexName(Class entityClass) {
         Document documentAnn = (Document) entityClass.getAnnotation(Document.class);
         return documentAnn.indexName();
+    }
+
+    /**
+     * 从Document注解中解析动态索引模式
+     * 目前只支持日期动态索引,如:date{yyyy-mm-dd}
+     *
+     * @param entityClass
+     * @return
+     */
+    public static String getIndexNamePattern(Class entityClass) {
+        Document documentAnn = (Document) entityClass.getAnnotation(Document.class);
+        String indexPattern = documentAnn.indexNamePattern();
+        if (indexPattern == null || indexPattern.length() == 0) {
+            return indexPattern;
+        }
+
+        indexPattern = indexPattern.substring(indexPattern.indexOf("{") + 1, indexPattern.indexOf("}"));
+        boolean supported = false;
+        if (indexPattern.startsWith("date")) {
+            try {
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern(indexPattern));
+                supported = true;
+            } catch (RuntimeException e) {
+                log.error(e.getMessage(), e);
+            }
+        }
+        //不支持的模式配置
+        if (!supported) {
+            throw new RuntimeException("ElasticSearchHelper Unsupported indexNamePattern:" + indexPattern);
+        }
+        return indexPattern;
     }
 
     public static String getTypeName(Class entityClass) {

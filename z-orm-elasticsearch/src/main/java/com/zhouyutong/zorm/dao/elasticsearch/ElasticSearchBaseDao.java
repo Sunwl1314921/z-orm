@@ -60,6 +60,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
 
     private ElasticSearchSettings elasticSearchSettings;
     private String index;
+    private String indexPattern;
     private String type;
     private String pkFieldName;
     private Class<T> entityClass;
@@ -86,7 +87,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
     public long countByCriteria(Criteria criteria) {
         RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
         SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices(index);
+        searchRequest.indices(ElasticSearchHelper.getRealIndex(index, indexPattern));
         searchRequest.types(type);
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -118,7 +119,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         DaoHelper.checkArgument(sql);
         RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
         SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices(index);
+        searchRequest.indices(ElasticSearchHelper.getRealIndex(index, indexPattern));
         searchRequest.types(type);
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -172,7 +173,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         String[] excludes = MixedConstant.EMPTY_STRING_ARRAY;
 
         SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices(index);
+        searchRequest.indices(ElasticSearchHelper.getRealIndex(index, indexPattern));
         searchRequest.types(type);
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -201,7 +202,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
 
         RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
         SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices(index);
+        searchRequest.indices(ElasticSearchHelper.getRealIndex(index, indexPattern));
         searchRequest.types(type);
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -229,7 +230,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
 
         SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices(index);
+        searchRequest.indices(ElasticSearchHelper.getRealIndex(index, indexPattern));
         searchRequest.types(type);
 
         IdsQueryBuilder idsQueryBuilder = QueryBuilders.idsQuery();
@@ -265,7 +266,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         int size = query.getLimit() < MixedConstant.INT_1 ? Integer.MAX_VALUE : query.getLimit();
 
         SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices(index);
+        searchRequest.indices(ElasticSearchHelper.getRealIndex(index, indexPattern));
         searchRequest.types(type);
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -317,7 +318,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         RestHighLevelClient client = ElasticSearchClientFactory.INSTANCE.getClient(elasticSearchSettings);
 
         SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices(index);
+        searchRequest.indices(ElasticSearchHelper.getRealIndex(index, indexPattern));
         searchRequest.types(type);
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -550,6 +551,7 @@ public abstract class ElasticSearchBaseDao<T> extends AbstractBaseDao<T> impleme
         ElasticSearchHelper.checkEntityClass(entityClass);
 
         this.index = ElasticSearchHelper.getIndexName(entityClass);
+        this.indexPattern = ElasticSearchHelper.getIndexNamePattern(entityClass);
         this.type = ElasticSearchHelper.getTypeName(entityClass);
 
         //得到jdbcSettings
