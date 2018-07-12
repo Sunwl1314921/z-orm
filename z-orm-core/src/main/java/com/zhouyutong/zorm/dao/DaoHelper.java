@@ -123,12 +123,22 @@ public class DaoHelper {
         }
     }
 
+
+    /**
+     * 支持的id字段类型
+     */
+    private static final List<Class> SUPPORT_ID_CLASS_TYPE_LIST = Lists.newArrayList(Long.class, Integer.class, String.class);
+
     /**
      * 校验id
      */
     public static void checkArgumentId(Serializable id) {
         if (id == null) {
             throw new IllegalArgumentException("Param id must be not null");
+        }
+
+        if (!SUPPORT_ID_CLASS_TYPE_LIST.contains(id.getClass())) {
+            throw new IllegalArgumentException("Param id's type must be Long or String or Integer");
         }
 
         if (id instanceof Long && ((Long) id).longValue() < 0) {
@@ -142,9 +152,6 @@ public class DaoHelper {
         if (id instanceof Integer && ((Integer) id).intValue() < 0) {
             throw new IllegalArgumentException("Param id must be >= 0");
         }
-
-        throw new IllegalArgumentException("Param id's type must be Long or String or Integer");
-
     }
 
     /**
