@@ -150,14 +150,14 @@ public final class ElasticSearchHelper {
      */
     public static String getIndexNamePattern(Class entityClass) {
         Document documentAnn = (Document) entityClass.getAnnotation(Document.class);
-        String indexPattern = documentAnn.indexNamePattern();
-        if (indexPattern == null || indexPattern.length() == 0) {
-            return indexPattern;
+        String indexNamePattern = documentAnn.indexNamePattern();
+        if (indexNamePattern == null || indexNamePattern.length() == 0) {
+            return null;
         }
 
-        indexPattern = indexPattern.substring(indexPattern.indexOf("{") + 1, indexPattern.indexOf("}"));
+        String indexPattern = indexNamePattern.substring(indexNamePattern.indexOf("{") + 1, indexNamePattern.indexOf("}"));
         boolean supported = false;
-        if (indexPattern.startsWith("date")) {
+        if (indexNamePattern.startsWith("date")) {
             try {
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern(indexPattern));
                 supported = true;
@@ -167,7 +167,7 @@ public final class ElasticSearchHelper {
         }
         //不支持的模式配置
         if (!supported) {
-            throw new RuntimeException("ElasticSearchHelper Unsupported indexNamePattern:" + indexPattern);
+            throw new RuntimeException("ElasticSearchHelper Unsupported indexNamePattern:" + indexNamePattern);
         }
         return indexPattern;
     }
