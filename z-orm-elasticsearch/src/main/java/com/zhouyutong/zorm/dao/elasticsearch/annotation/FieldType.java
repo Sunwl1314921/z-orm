@@ -14,5 +14,5 @@ public enum FieldType {
     Double,
     GEO_POINT,
     Auto,
-    IPV4;
+    IP;
 }
