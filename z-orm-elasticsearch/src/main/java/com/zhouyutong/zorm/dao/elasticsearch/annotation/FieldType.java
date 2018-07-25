@@ -5,5 +5,14 @@ package com.zhouyutong.zorm.dao.elasticsearch.annotation;
  * @Date 2017/5/16
  */
 public enum FieldType {
-    String, Integer, Long, Date, Float, Double, Auto, Ip
+    Boolean,
+    String,
+    Integer,
+    Long,
+    Date,
+    Float,
+    Double,
+    GEO_POINT,
+    Auto,
+    IPV4;
 }
